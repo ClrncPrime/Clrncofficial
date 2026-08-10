@@ -34,10 +34,23 @@
         <div class="contact-card">
           <h2>Contact</h2>
           <div class="contact-details">
-            <p><strong>Email:</strong> Clarencedionisio23@gmail.com</p>
-            <p><strong>Phone:</strong> 09485248172</p>
+            <p>
+              <strong>Email:</strong>
+              <a class="btn btn-primary" href="mailto:clarencedionisio23@gmail.com">Send Me an Email</a>
+            </p>
+
+            <p>
+              <strong>Phone:</strong>
+              <a href="#" id="phoneBtn" class="btn btn-secondary">Contact Me via Phone</a>
+            </p>
+
+            <div id="phoneOptions" style="display:none; margin-top:8px;">
+              <a class="btn btn-primary" href="tel:09485248172">📞 Call Me</a>
+              <a class="btn btn-primary" href="sms:09485248172">💬 Send SMS</a>
+            </div>
+
             <p><strong>Location:</strong> Philippines</p>
-              <p><strong>Facebook:</strong> <a class="btn btn-primary" href="https://www.facebook.com/Lerioyence" target="_blank" rel="noopener">Message Me on Facebook</a></p>
+            <p><strong>Facebook:</strong> <a class="btn btn-primary" href="https://www.facebook.com/Lerioyence" target="_blank" rel="noopener">Message Me on Facebook</a></p>
           </div>
         </div>
       </div>
@@ -52,5 +65,21 @@
   </footer>
 
   <script src="script.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function(){
+      var phoneBtn = document.getElementById('phoneBtn');
+      var phoneOptions = document.getElementById('phoneOptions');
+      if(!phoneBtn || !phoneOptions) return;
+      phoneBtn.addEventListener('click', function(e){
+        e.preventDefault();
+        phoneOptions.style.display = (phoneOptions.style.display === 'block') ? 'none' : 'block';
+      });
+      document.addEventListener('click', function(e){
+        if(!phoneOptions.contains(e.target) && e.target !== phoneBtn){
+          phoneOptions.style.display = 'none';
+        }
+      });
+    });
+  </script>
 </body>
 </html>
