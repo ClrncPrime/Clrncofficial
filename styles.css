@@ -633,3 +633,11 @@ textarea {
     padding: 3rem 0 2rem;
   }
 }
+
+/* Center Skills section heading and match card spacing */
+.skills-section h2 {
+  text-align: center;
+  margin: 0 0 1.25rem;
+  font-size: 1.5rem;
+  color: var(--text);
+}
