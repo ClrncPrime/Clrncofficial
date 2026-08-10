@@ -37,43 +37,59 @@ navLinks.forEach((link) => {
   }
 });
 
-// Skills portal toggle (expand/collapse on Home page)
-const skillsCard = document.getElementById('skillsCard');
-const skillsPortal = document.getElementById('skillsPortal');
-const skillsViewLink = document.getElementById('skillsViewLink');
-if (skillsCard && skillsPortal) {
-  // toggle function using scrollHeight for smooth transition
-  const toggleSkills = (e) => {
-    if (e) e.preventDefault();
-    const isOpen = skillsPortal.classList.contains('open');
-    if (isOpen) {
-      skillsPortal.style.maxHeight = '0px';
-      skillsPortal.classList.remove('open');
-      skillsPortal.setAttribute('aria-hidden', 'true');
-      skillsCard.setAttribute('aria-expanded', 'false');
-    } else {
-      // set exact height then add open class
-      const h = skillsPortal.scrollHeight;
-      skillsPortal.style.maxHeight = h + 'px';
-      skillsPortal.classList.add('open');
-      skillsPortal.setAttribute('aria-hidden', 'false');
-      skillsCard.setAttribute('aria-expanded', 'true');
-    }
+// Generic portal toggle binder for preview cards
+function bindPortalToggle(cardId, portalId, linkId) {
+  const card = document.getElementById(cardId);
+  const portal = document.getElementById(portalId);
+  const link = linkId ? document.getElementById(linkId) : null;
+  if (!card || !portal) return null;
+
+  const openPortal = () => {
+    const h = portal.scrollHeight;
+    portal.style.maxHeight = h + 'px';
+    portal.classList.add('open');
+    portal.setAttribute('aria-hidden', 'false');
+    card.setAttribute('aria-expanded', 'true');
+    if (link) link.textContent = 'Close';
   };
 
-  skillsCard.style.cursor = 'pointer';
-  skillsCard.addEventListener('click', toggleSkills);
-  if (skillsViewLink) {
-    skillsViewLink.addEventListener('click', toggleSkills);
-  }
-  // close when clicking outside
-  document.addEventListener('click', function(e){
-    if (!skillsCard.contains(e.target) && !skillsPortal.contains(e.target) && skillsPortal.classList.contains('open')) {
-      // collapse
-      skillsPortal.style.maxHeight = '0px';
-      skillsPortal.classList.remove('open');
-      skillsPortal.setAttribute('aria-hidden','true');
-      skillsCard.setAttribute('aria-expanded','false');
+  const closePortal = () => {
+    portal.style.maxHeight = '0px';
+    portal.classList.remove('open');
+    portal.setAttribute('aria-hidden', 'true');
+    card.setAttribute('aria-expanded', 'false');
+    if (link) link.textContent = 'View';
+  };
+
+  const toggle = (e) => {
+    if (e) e.preventDefault();
+    if (portal.classList.contains('open')) closePortal(); else openPortal();
+  };
+
+  card.style.cursor = 'pointer';
+  card.addEventListener('click', toggle);
+  if (link) link.addEventListener('click', (e) => { e.stopPropagation(); toggle(e); });
+
+  return { card, portal, link, openPortal, closePortal };
+}
+
+// Bind portals for all preview cards
+const portals = [
+  bindPortalToggle('skillsCard', 'skillsPortal', 'skillsViewLink'),
+  bindPortalToggle('servicesCard', 'servicesPortal', 'servicesViewLink'),
+  bindPortalToggle('sampleCard', 'samplePortal', 'sampleViewLink'),
+  bindPortalToggle('portfolioCard', 'portfolioPortal', 'portfolioViewLink')
+].filter(Boolean);
+
+// Close any open portal when clicking outside of cards/portals
+document.addEventListener('click', function(e){
+  portals.forEach(p => {
+    if (!p) return;
+    const { card, portal, closePortal } = p;
+    if (portal.classList.contains('open')) {
+      if (!card.contains(e.target) && !portal.contains(e.target)) {
+        closePortal();
+      }
     }
   });
-}
+});
