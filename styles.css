@@ -581,6 +581,22 @@ textarea {
   }
 }
 
+/* Skills portal expand/collapse */
+.skills-portal {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 380ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.skills-portal .content-card {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+.skills-portal.open {
+  /* allow enough space; JS will set exact max-height when opened */
+  max-height: 1200px;
+}
+
 @media (max-width: 720px) {
   .header-inner {
     flex-wrap: wrap;
