@@ -8,11 +8,14 @@
   --primary: #7c3aed;
   --primary-light: #a78bfa;
   --border: rgba(148, 163, 184, 0.18);
+  --glow-soft: rgba(56, 189, 248, 0.12);
+  --glow-strong: rgba(56, 189, 248, 0.32);
   --shadow: 0 24px 80px rgba(15, 23, 42, 0.25);
 }
 
 * {
   box-sizing: border-box;
+  transition: color 0.25s ease, background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
 }
 
 html {
@@ -24,6 +27,14 @@ body {
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: linear-gradient(180deg, #07101f 0%, #0a1220 100%);
   color: var(--text);
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.55s ease, transform 0.55s ease;
+}
+
+body.page-ready {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 img {
@@ -34,6 +45,30 @@ img {
 a {
   color: inherit;
   text-decoration: none;
+  position: relative;
+}
+
+.main-nav a {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0;
+}
+
+.main-nav a::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -0.2rem;
+  width: 0;
+  height: 2px;
+  background: var(--primary-light);
+  transition: width 0.28s ease;
+  border-radius: 999px;
+}
+
+.main-nav a:hover::after,
+.main-nav a.active::after {
+  width: 100%;
 }
 
 button,
@@ -400,6 +435,48 @@ textarea {
   color: var(--muted);
 }
 
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+  will-change: opacity, transform;
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.press-active {
+  transform: translateY(1px) scale(0.985) rotateX(1.2deg) rotateY(-0.4deg) !important;
+  box-shadow: 0 22px 42px rgba(56, 189, 248, 0.16), 0 0 0 1px rgba(56, 189, 248, 0.14) !important;
+}
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  transform: scale(0);
+  opacity: 0.95;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.92) 0%, rgba(56, 189, 248, 0.85) 20%, rgba(56, 189, 248, 0.12) 45%, rgba(56, 189, 248, 0) 100%);
+  animation: ripple-effect 0.55s ease-out forwards;
+}
+
+@keyframes ripple-effect {
+  0% {
+    transform: scale(0);
+    opacity: 0.9;
+  }
+  35% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(2.3);
+    opacity: 0;
+  }
+}
+
 @media (max-width: 900px) {
   .content-grid,
   .contact-wrapper {
@@ -423,6 +500,16 @@ textarea {
   .main-nav {
     flex-wrap: wrap;
     gap: 0.85rem;
+    width: 100%;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.35s ease, opacity 0.35s ease;
+  }
+
+  .main-nav.nav-open {
+    max-height: 480px;
+    opacity: 1;
   }
 
   .menu-toggle {
