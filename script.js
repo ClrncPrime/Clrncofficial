@@ -33,7 +33,7 @@ function createRipple(target, x, y) {
   const ripple = document.createElement('span');
   ripple.className = 'ripple';
   const rect = target.getBoundingClientRect();
-  const size = Math.max(rect.width, rect.height) * 1.2;
+  const size = Math.max(rect.width, rect.height) * 1.1;
   ripple.style.width = `${size}px`;
   ripple.style.height = `${size}px`;
   ripple.style.left = `${x - rect.left - size / 2}px`;
@@ -48,9 +48,11 @@ function createRipple(target, x, y) {
 function applyPressEffect(target) {
   if (!target) return;
   target.classList.add('press-active');
-  window.setTimeout(() => {
-    target.classList.remove('press-active');
-  }, 260);
+  window.requestAnimationFrame(() => {
+    window.setTimeout(() => {
+      target.classList.remove('press-active');
+    }, 240);
+  });
 }
 
 function attachInteractiveGlow(element) {
