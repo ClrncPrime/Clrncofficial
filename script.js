@@ -16,11 +16,11 @@ if (contactForm) {
     const message = document.getElementById('message').value.trim();
 
     if (!name || !email || !message) {
-      alert('Pakilagay ang lahat ng kinakailangang impormasyon.');
+      alert('Please enter all required information.');
       return;
     }
 
-    alert(`Salamat, ${name}! Natanggap ang iyong mensahe. Sasagutin kita sa lalong madaling panahon.`);
+    alert(`Thank you, ${name}! Your message has been received. I will reply as soon as possible.`);
     contactForm.reset();
   });
 }
