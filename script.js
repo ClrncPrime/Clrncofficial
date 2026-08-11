@@ -118,96 +118,163 @@ async function loadSampleWork() {
 
 // YouTube-based ambient audio player (uses video ID, loops forever)
 function setupYouTubeAudio() {
-  if (document.getElementById('audioPlayerButton')) return;
+  if (document.getElementById('floatingPlayer')) return;
 
-  const button = document.createElement('button');
-  button.id = 'audioPlayerButton';
-  button.type = 'button';
-  button.className = 'audio-player-button';
-  button.innerHTML = '<span class="audio-icon">♪</span><span class="audio-label">Play Lobby Music</span>';
+  // Create floating container
+  const wrap = document.createElement('div');
+  wrap.id = 'floatingPlayer';
+  wrap.className = 'floating-player';
 
-  let player = null;
-  let playerReady = false;
+  const panel = document.createElement('div');
+  panel.className = 'floating-panel';
+  panel.innerHTML = `
+    <div class="fp-title">Lobby Music</div>
+    <div class="fp-small">Ambient loop</div>
+    <div class="fp-row" style="margin-top:10px;">
+      <button class="control-btn" id="fpPlay">▶️</button>
+      <button class="control-btn" id="fpPause">⏸</button>
+      <button class="control-btn" id="fpStop">⏹</button>
+      <button class="control-btn" id="fpRestart">🔁</button>
+    </div>
+    <div class="volume-wrap">
+      <input id="fpVolume" class="volume-slider" type="range" min="0" max="100" value="12">
+    </div>
+  `;
 
-  // Hidden container for the player
-  const div = document.createElement('div');
-  div.id = 'ytAudioContainer';
-  div.style.width = '0px';
-  div.style.height = '0px';
-  div.style.overflow = 'hidden';
-  div.style.position = 'absolute';
-  div.style.left = '-9999px';
-  document.body.appendChild(div);
+  const btnWrap = document.createElement('div');
+  btnWrap.className = 'floating-button';
+  btnWrap.innerHTML = '<div class="dot"></div>';
 
-  // Load YouTube IFrame API if needed
+  wrap.appendChild(panel);
+  wrap.appendChild(btnWrap);
+  document.body.appendChild(wrap);
+
+  // Position state
+  const posKey = 'floatingPlayerPos';
+  const stateKey = 'floatingPlayerState';
+  const timeKey = 'floatingPlayerTime';
+
+  // Restore position
+  const saved = localStorage.getItem(posKey);
+  if (saved) {
+    try {
+      const p = JSON.parse(saved);
+      wrap.style.right = 'auto';
+      wrap.style.left = p.x + 'px';
+      wrap.style.top = p.y + 'px';
+      wrap.style.bottom = 'auto';
+    } catch (e) {}
+  }
+
+  // Dragging
+  let dragging = false, dragOffsetX = 0, dragOffsetY = 0;
+  btnWrap.addEventListener('pointerdown', (ev) => {
+    dragging = true;
+    btnWrap.setPointerCapture(ev.pointerId);
+    const rect = wrap.getBoundingClientRect();
+    dragOffsetX = ev.clientX - rect.left;
+    dragOffsetY = ev.clientY - rect.top;
+  });
+  window.addEventListener('pointermove', (ev) => {
+    if (!dragging) return;
+    ev.preventDefault();
+    wrap.style.left = Math.min(Math.max(8, ev.clientX - dragOffsetX), window.innerWidth - 68) + 'px';
+    wrap.style.top = Math.min(Math.max(8, ev.clientY - dragOffsetY), window.innerHeight - 68) + 'px';
+    wrap.style.right = 'auto';
+    wrap.style.bottom = 'auto';
+  });
+  window.addEventListener('pointerup', (ev) => {
+    if (!dragging) return;
+    dragging = false;
+    try { btnWrap.releasePointerCapture(ev.pointerId); } catch (e) {}
+    // save
+    const rect = wrap.getBoundingClientRect();
+    localStorage.setItem(posKey, JSON.stringify({ x: rect.left, y: rect.top }));
+  });
+
+  // Toggle panel
+  let open = false;
+  btnWrap.addEventListener('click', (e) => {
+    if (dragging) return; // ignore click when dragging
+    open = !open;
+    panel.classList.toggle('open', open);
+  });
+
+  // Load YT API and create player
+  const playerContainer = document.createElement('div');
+  playerContainer.id = 'ytAudioContainer';
+  playerContainer.style.width = '0'; playerContainer.style.height = '0'; playerContainer.style.overflow = 'hidden';
+  playerContainer.style.position = 'absolute'; playerContainer.style.left = '-9999px';
+  document.body.appendChild(playerContainer);
+
   if (!window.YT) {
     const tag = document.createElement('script');
     tag.src = 'https://www.youtube.com/iframe_api';
     document.head.appendChild(tag);
   }
 
+  let player = null;
+  let playerReady = false;
+
   window.onYouTubeIframeAPIReady = function() {
     player = new YT.Player('ytAudioContainer', {
-      height: '0',
-      width: '0',
-      videoId: LOBBY_YT_ID,
+      height: '0', width: '0', videoId: LOBBY_YT_ID,
       playerVars: { controls: 0, disablekb: 1, modestbranding: 1, rel: 0, showinfo: 0 },
       events: {
-        onReady: function(e) { playerReady = true; try { player.setVolume(12); } catch (e) {} },
-        onStateChange: function(e) { if (e.data === YT.PlayerState.ENDED) { try { player.seekTo(0); player.playVideo(); } catch (e) {} } }
+        onReady: function() {
+          playerReady = true;
+          try { player.setVolume(parseInt(document.getElementById('fpVolume').value,10)); } catch(e) {}
+          // restore state
+          const st = JSON.parse(localStorage.getItem(stateKey) || 'null');
+          const t = parseFloat(localStorage.getItem(timeKey) || '0') || 0;
+          if (st && st.playing) {
+            try { player.seekTo(t); player.playVideo(); document.querySelector('.floating-button').classList.add('playing'); } catch(e) {}
+          }
+        },
+        onStateChange: function(e) {
+          if (e.data === YT.PlayerState.ENDED) {
+            try { player.seekTo(0); player.playVideo(); } catch (e) {}
+          }
+        }
       }
     });
   };
 
-  function fadeVolume(target, duration = 600) {
-    if (!player || !playerReady || typeof player.getVolume !== 'function') return;
-    const start = player.getVolume();
-    const steps = 12;
-    const stepTime = Math.max(20, Math.floor(duration / steps));
-    let i = 0;
-    const delta = (target - start) / steps;
-    const t = setInterval(() => {
-      i++;
-      const v = Math.max(0, Math.min(100, Math.round(start + delta * i)));
-      try { player.setVolume(v); } catch (err) {}
-      if (i >= steps) clearInterval(t);
-    }, stepTime);
-    return t;
+  // Controls
+  const playBtn = panel.querySelector('#fpPlay');
+  const pauseBtn = panel.querySelector('#fpPause');
+  const stopBtn = panel.querySelector('#fpStop');
+  const restartBtn = panel.querySelector('#fpRestart');
+  const vol = panel.querySelector('#fpVolume');
+
+  function saveState(playing) {
+    localStorage.setItem(stateKey, JSON.stringify({ playing: !!playing }));
   }
 
-  let playing = false;
-  const audioLabel = () => button.querySelector('.audio-label');
+  function saveTime() {
+    if (!player || !playerReady) return;
+    try { const t = player.getCurrentTime(); localStorage.setItem(timeKey, String(t)); } catch (e) {}
+  }
 
-  button.addEventListener('click', () => {
-    if (!window.YT || !window.YT.Player) {
-      if (audioLabel()) audioLabel().textContent = 'Loading...';
-      const check = setInterval(() => { if (window.YT && window.YT.Player) { clearInterval(check); button.click(); } }, 300);
-      return;
-    }
-
-    if (!playerReady) {
-      if (audioLabel()) audioLabel().textContent = 'Starting...';
-      const wait = setInterval(() => {
-        if (player && typeof player.getPlayerState === 'function') {
-          clearInterval(wait);
-          try { player.playVideo(); fadeVolume(12); } catch (e) {}
-          button.classList.add('playing'); if (audioLabel()) audioLabel().textContent = '⏸ Pause Music'; playing = true;
-        }
-      }, 250);
-      return;
-    }
-
-    try {
-      const state = player.getPlayerState();
-      if (state !== YT.PlayerState.PLAYING) {
-        player.playVideo(); fadeVolume(12); button.classList.add('playing'); if (audioLabel()) audioLabel().textContent = '⏸ Pause Music'; playing = true;
-      } else {
-        player.pauseVideo(); fadeVolume(0); button.classList.remove('playing'); if (audioLabel()) audioLabel().textContent = 'Play Lobby Music'; playing = false;
-      }
-    } catch (err) {}
+  playBtn.addEventListener('click', () => {
+    if (!playerReady) return;
+    try { player.playVideo(); saveState(true); document.querySelector('.floating-button').classList.add('playing'); } catch(e) {}
   });
+  pauseBtn.addEventListener('click', () => { if (!playerReady) return; try { player.pauseVideo(); saveState(false); document.querySelector('.floating-button').classList.remove('playing'); } catch(e) {} });
+  stopBtn.addEventListener('click', () => { if (!playerReady) return; try { player.stopVideo(); player.seekTo(0); saveState(false); document.querySelector('.floating-button').classList.remove('playing'); } catch(e) {} });
+  restartBtn.addEventListener('click', () => { if (!playerReady) return; try { player.seekTo(0); player.playVideo(); saveState(true); document.querySelector('.floating-button').classList.add('playing'); } catch(e) {} });
 
-  document.body.appendChild(button);
+  vol.addEventListener('input', (e) => { if (!playerReady) return; try { player.setVolume(parseInt(e.target.value,10)); } catch(e) {} });
+
+  // Periodically save time if playing
+  setInterval(() => { const st = JSON.parse(localStorage.getItem(stateKey) || 'null'); if (st && st.playing) saveTime(); }, 2000);
+
+  // close panel when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!wrap.contains(e.target) && panel.classList.contains('open')) {
+      panel.classList.remove('open');
+    }
+  });
 }
 
 function handleReasonSelection(reason) {
