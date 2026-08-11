@@ -37,7 +37,7 @@ navLinks.forEach((link) => {
   }
 });
 
-const LOBBY_YT_ID = 'VIDEO_ID_HERE';
+const LOBBY_AUDIO_SRC = 'lobby-ambient.wav';
 
 const REASON_STORAGE_KEY = 'portfolioVisitReason';
 const REASON_CONFIG = {
@@ -116,9 +116,20 @@ async function loadSampleWork() {
   `;
 }
 
-// YouTube-based ambient player (replaces file-based/fallback audio implementation)
-function setupYouTubeAudio() {
+// Local ambient audio player using `lobby-ambient.wav` (preloads, loops, fades)
+function initAudioPlayer() {
   if (document.getElementById('audioPlayerButton')) return;
+
+  const audio = document.createElement('audio');
+  audio.src = LOBBY_AUDIO_SRC;
+  audio.preload = 'auto';
+  audio.loop = true;
+  audio.volume = 0.0;
+  audio.setAttribute('aria-hidden', 'true');
+  audio.style.display = 'none';
+
+  // Ensure it starts ready
+  audio.load();
 
   const button = document.createElement('button');
   button.id = 'audioPlayerButton';
@@ -126,85 +137,52 @@ function setupYouTubeAudio() {
   button.className = 'audio-player-button';
   button.innerHTML = '<span class="audio-icon">♪</span><span class="audio-label">Play Lobby Music</span>';
 
-  let player = null;
-  let playerReady = false;
-
-  // Load YouTube IFrame API once
-  if (!window.YT) {
-    const tag = document.createElement('script');
-    tag.src = 'https://www.youtube.com/iframe_api';
-    document.head.appendChild(tag);
-  }
-
-  window.onYouTubeIframeAPIReady = function() {
-    const div = document.createElement('div');
-    div.id = 'ytAudioContainer';
-    div.style.width = '0px';
-    div.style.height = '0px';
-    div.style.overflow = 'hidden';
-    div.style.position = 'absolute';
-    div.style.left = '-9999px';
-    document.body.appendChild(div);
-
-    player = new YT.Player('ytAudioContainer', {
-      height: '0',
-      width: '0',
-      videoId: LOBBY_YT_ID,
-      playerVars: { controls: 0, disablekb: 1, modestbranding: 1, rel: 0, showinfo: 0 },
-      events: {
-        onReady: (e) => { playerReady = true; try { player.setVolume(8); } catch(e) {} },
-        onStateChange: (e) => { if (e.data === YT.PlayerState.ENDED) { try { player.seekTo(0); player.playVideo(); } catch(e) {} } }
-      }
-    });
-  };
-
-  function fadeVolume(target, duration = 600) {
-    if (!player || !playerReady || typeof player.getVolume !== 'function') return;
-    const start = player.getVolume();
+  function fadeAudio(targetVolume = 0.22, duration = 600) {
+    const start = audio.volume;
     const steps = 12;
     const stepTime = Math.max(20, Math.floor(duration / steps));
     let i = 0;
-    const delta = (target - start) / steps;
+    const delta = (targetVolume - start) / steps;
     const t = setInterval(() => {
       i++;
-      const v = Math.max(0, Math.min(100, Math.round(start + delta * i)));
-      try { player.setVolume(v); } catch (err) {}
+      audio.volume = Math.max(0, Math.min(1, start + delta * i));
       if (i >= steps) clearInterval(t);
     }, stepTime);
+    return t;
   }
 
-  const audioLabel = button.querySelector('.audio-label');
-  let playing = false;
-  button.addEventListener('click', () => {
-    if (!window.YT || !window.YT.Player) {
-      if (audioLabel) audioLabel.textContent = 'Loading...';
-      const check = setInterval(() => { if (window.YT && window.YT.Player) { clearInterval(check); button.click(); } }, 300);
-      return;
-    }
-
-    if (!playerReady) {
-      // Try again shortly once player is created
-      if (audioLabel) audioLabel.textContent = 'Starting...';
-      const wait = setInterval(() => {
-        if (typeof player !== 'undefined' && player && typeof player.getPlayerState === 'function') {
-          clearInterval(wait);
-          try { player.playVideo(); fadeVolume(8); } catch (e) {}
-          button.classList.add('playing'); if (audioLabel) audioLabel.textContent = 'Pause Music'; playing = true;
-        }
-      }, 250);
-      return;
-    }
-
-    try {
-      const state = player.getPlayerState();
-      if (state !== YT.PlayerState.PLAYING) {
-        player.playVideo(); fadeVolume(8); button.classList.add('playing'); if (audioLabel) audioLabel.textContent = 'Pause Music'; playing = true;
-      } else {
-        player.pauseVideo(); fadeVolume(0); button.classList.remove('playing'); if (audioLabel) audioLabel.textContent = 'Play Lobby Music'; playing = false;
-      }
-    } catch (err) {}
+  audio.addEventListener('ended', () => {
+    // loop should handle this, but ensure restart for browsers that don't
+    try { audio.currentTime = 0; audio.play(); } catch (e) {}
   });
 
+  let playing = false;
+  const audioLabel = () => button.querySelector('.audio-label');
+
+  button.addEventListener('click', async () => {
+    if (!playing) {
+      try {
+        await audio.play();
+        fadeAudio(0.22, 600);
+        button.classList.add('playing');
+        if (audioLabel()) audioLabel().textContent = '⏸ Pause Music';
+        playing = true;
+      } catch (err) {
+        if (audioLabel()) audioLabel().textContent = 'Audio unavailable';
+      }
+    } else {
+      // fade out then pause
+      fadeAudio(0.0, 600);
+      setTimeout(() => {
+        try { audio.pause(); } catch (e) {}
+      }, 620);
+      button.classList.remove('playing');
+      if (audioLabel()) audioLabel().textContent = 'Play Lobby Music';
+      playing = false;
+    }
+  });
+
+  document.body.appendChild(audio);
   document.body.appendChild(button);
 }
 
@@ -290,7 +268,7 @@ function initExperience() {
     showWelcomeOverlay();
   }
   setupSmoothNavigation();
-  setupYouTubeAudio();
+  initAudioPlayer();
   loadSampleWork();
 }
 

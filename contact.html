@@ -55,29 +55,7 @@
         </div>
       </div>
     </section>
-    <section class="section">
-      <div class="container">
-        <div class="content-card">
-          <h2>Send a message</h2>
-          <form id="contactForm">
-            <label for="contactName">Name</label>
-            <input id="contactName" name="name" type="text" required>
-
-            <label for="contactEmail">Email</label>
-            <input id="contactEmail" name="email" type="email" required>
-
-            <label for="contactPhone">Phone</label>
-            <input id="contactPhone" name="phone" type="tel">
-
-            <label for="contactMessage">Message</label>
-            <textarea id="contactMessage" name="message" rows="5" required></textarea>
-
-            <button type="button" id="sendMailBtn" class="btn btn-primary">Send Message</button>
-            <p id="contactFormStatus" class="form-note">Your message will be saved securely and sent.</p>
-          </form>
-        </div>
-      </div>
-    </section>
+    <!-- Message form removed per request: only contact buttons are shown -->
   </main>
 
   <footer class="site-footer">
@@ -103,20 +81,7 @@
         });
       }
 
-      var sendBtn = document.getElementById('sendMailBtn');
-      if (sendBtn) {
-        sendBtn.addEventListener('click', function() {
-          var form = document.getElementById('contactForm');
-          if (!form) return;
-          var name = form.querySelector('[name="name"]').value || '';
-          var email = form.querySelector('[name="email"]').value || '';
-          var phone = form.querySelector('[name="phone"]')?.value || '';
-          var message = form.querySelector('[name="message"]').value || '';
-          var subject = encodeURIComponent('Contact from ' + (name || 'Website Visitor'));
-          var body = encodeURIComponent('Name: ' + name + '\nEmail: ' + email + '\nPhone: ' + phone + '\n\n' + message);
-          window.location.href = 'mailto:clarencedionisio23@gmail.com?subject=' + subject + '&body=' + body;
-        });
-      }
+      // No message form — contact via the provided buttons above.
     });
   </script>
 </body>
