@@ -37,6 +37,11 @@ navLinks.forEach((link) => {
   }
 });
 
+const SUPABASE_URL = 'https://your-project-ref.supabase.co';
+const SUPABASE_KEY = 'your-public-anon-key';
+const LOBBY_AUDIO_SRC = 'lobby-ambient.mp3';
+let supabaseClient = null;
+
 const REASON_STORAGE_KEY = 'portfolioVisitReason';
 const REASON_CONFIG = {
   portfolio: {
@@ -99,6 +104,244 @@ function hideWelcomeOverlay() {
   if (!overlay) return;
   overlay.classList.remove('visible');
   document.body.classList.remove('welcome-active');
+}
+
+function initSupabase() {
+  const placeholderUrl = 'your-project-ref.supabase.co';
+  const placeholderKey = 'your-public-anon-key';
+  if (!SUPABASE_URL || !SUPABASE_KEY || SUPABASE_URL.includes(placeholderUrl) || SUPABASE_KEY.includes(placeholderKey)) {
+    supabaseClient = null;
+    return;
+  }
+
+  const supabaseLib = window.supabase || window.supabaseJs || window.supabaseClient || null;
+  if (supabaseLib && !supabaseClient) {
+    const createClient = supabaseLib.createClient || supabaseLib;
+    if (typeof createClient === 'function') {
+      supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+    }
+  }
+}
+
+async function loadSampleWork() {
+  const container = document.getElementById('dynamicSampleContainer');
+  if (!container) return;
+  container.innerHTML = '<p class="form-note">Loading featured projects...</p>';
+  if (!supabaseClient) {
+    container.innerHTML = `
+      <article class="work-card">
+        <h2>Featured project feed</h2>
+        <p>Live sample projects will appear here once Supabase is configured. Replace the placeholder Supabase URL and public anon key in <code>script.js</code> to enable dynamic loading.</p>
+      </article>
+    `;
+    return;
+  }
+
+  try {
+    const { data, error } = await supabaseClient.from('sample_projects').select('id,title,description,link').limit(4);
+    if (error || !data) {
+      container.innerHTML = '';
+      return;
+    }
+
+    const cards = data.map((project) => `
+      <article class="work-card">
+        <h2>${project.title}</h2>
+        <p>${project.description}</p>
+        ${project.link ? `<a class="btn btn-primary" href="${project.link}" target="_blank" rel="noopener">View Project</a>` : ''}
+      </article>
+    `).join('');
+
+    container.innerHTML = cards;
+  } catch (err) {
+    container.innerHTML = '';
+  }
+}
+
+function bindContactForm() {
+  const form = document.getElementById('contactForm');
+  if (!form) return;
+
+  const nameField = document.getElementById('contactName');
+  const emailField = document.getElementById('contactEmail');
+  const messageField = document.getElementById('contactMessage');
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const status = document.getElementById('contactFormStatus');
+    if (!status) return;
+    status.textContent = 'Sending your message...';
+
+    const payload = {
+      name: nameField?.value.trim() || '',
+      email: emailField?.value.trim() || '',
+      message: messageField?.value.trim() || '',
+      page: currentPage || 'index.html',
+      created_at: new Date().toISOString(),
+    };
+
+    if (supabaseClient) {
+      try {
+        const { error } = await supabaseClient.from('contact_messages').insert([payload]);
+        if (error) {
+          status.textContent = 'Unable to send at the moment. Please try again later.';
+          return;
+        }
+        status.textContent = 'Message saved successfully. Thank you!';
+        form.reset();
+        return;
+      } catch (e) {
+        status.textContent = 'Unable to send at the moment. Please try again later.';
+        return;
+      }
+    }
+
+    status.textContent = 'Message ready to send. Supabase is not configured yet.';
+  });
+}
+
+let lobbyAudio = null;
+let audioContext = null;
+let audioGain = null;
+let audioOscillator = null;
+
+function fadeAudio(clip, targetVolume, duration = 400) {
+  if (!clip) return;
+  const startVolume = clip.volume;
+  const step = 50;
+  const steps = Math.max(1, Math.floor(duration / step));
+  let currentStep = 0;
+  const volumeDelta = targetVolume - startVolume;
+
+  const fade = setInterval(() => {
+    currentStep += 1;
+    clip.volume = Math.min(1, Math.max(0, startVolume + (volumeDelta * currentStep) / steps));
+    if (currentStep >= steps) {
+      clearInterval(fade);
+      if (clip.volume === 0) clip.pause();
+    }
+  }, step);
+}
+
+function fadeAudioGain(targetVolume, duration = 400) {
+  if (!audioGain) return;
+  const startVolume = audioGain.gain.value;
+  const step = 50;
+  const steps = Math.max(1, Math.floor(duration / step));
+  let currentStep = 0;
+  const volumeDelta = targetVolume - startVolume;
+
+  const fade = setInterval(() => {
+    currentStep += 1;
+    audioGain.gain.value = Math.min(1, Math.max(0, startVolume + (volumeDelta * currentStep) / steps));
+    if (currentStep >= steps) {
+      clearInterval(fade);
+      if (audioGain.gain.value === 0 && audioOscillator) {
+        audioOscillator.stop();
+        audioOscillator = null;
+      }
+    }
+  }, step);
+}
+
+function createAmbientAudio() {
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return false;
+
+  audioContext = new AudioContext();
+  audioGain = audioContext.createGain();
+  audioGain.gain.value = 0;
+  audioGain.connect(audioContext.destination);
+
+  const filter = audioContext.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 640;
+  filter.Q.value = 1;
+
+  audioOscillator = audioContext.createOscillator();
+  audioOscillator.type = 'triangle';
+  audioOscillator.frequency.value = 120;
+  audioOscillator.connect(filter);
+  filter.connect(audioGain);
+  audioOscillator.start();
+
+  return true;
+}
+
+async function initAudioPlayer() {
+  if (document.getElementById('audioPlayerButton')) return;
+
+  const hasAudioFile = await (async () => {
+    try {
+      const response = await fetch(LOBBY_AUDIO_SRC, { method: 'HEAD' });
+      return response.ok;
+    } catch (err) {
+      return false;
+    }
+  })();
+
+  const canUseFallback = !!(window.AudioContext || window.webkitAudioContext);
+  if (!hasAudioFile && !canUseFallback) return;
+
+  const button = document.createElement('button');
+  button.id = 'audioPlayerButton';
+  button.type = 'button';
+  button.className = 'audio-player-button';
+  button.innerHTML = '<span class="audio-icon">♪</span><span class="audio-label">Play Lobby Music</span>';
+
+  let playing = false;
+  const audioLabel = button.querySelector('.audio-label');
+
+  async function startPlayback() {
+    if (hasAudioFile) {
+      if (!lobbyAudio) {
+        lobbyAudio = new Audio(LOBBY_AUDIO_SRC);
+        lobbyAudio.loop = true;
+        lobbyAudio.volume = 0.06;
+        lobbyAudio.preload = 'none';
+      }
+      await lobbyAudio.play();
+      fadeAudio(lobbyAudio, 0.08, 600);
+      return;
+    }
+
+    if (!audioOscillator) {
+      if (!createAmbientAudio()) throw new Error('Ambient audio unavailable');
+    }
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume();
+    }
+    fadeAudioGain(0.08, 600);
+  }
+
+  function stopPlayback() {
+    if (lobbyAudio) {
+      fadeAudio(lobbyAudio, 0, 600);
+    }
+    if (audioGain) {
+      fadeAudioGain(0, 600);
+    }
+  }
+
+  button.addEventListener('click', async () => {
+    if (!playing) {
+      try {
+        await startPlayback();
+        button.classList.add('playing');
+        if (audioLabel) audioLabel.textContent = 'Pause Music';
+        playing = true;
+      } catch (err) {
+        if (audioLabel) audioLabel.textContent = 'Audio unavailable';
+      }
+    } else {
+      stopPlayback();
+      button.classList.remove('playing');
+      if (audioLabel) audioLabel.textContent = 'Play Lobby Music';
+      playing = false;
+    }
+  });
+
+  document.body.appendChild(button);
 }
 
 function handleReasonSelection(reason) {
@@ -174,6 +417,7 @@ function enforceReasonRedirect(reason) {
 }
 
 function initExperience() {
+  initSupabase();
   const savedReason = localStorage.getItem(REASON_STORAGE_KEY);
   if (savedReason && REASON_CONFIG[savedReason]) {
     applyReasonFilters(savedReason);
@@ -183,6 +427,9 @@ function initExperience() {
     showWelcomeOverlay();
   }
   setupSmoothNavigation();
+  bindContactForm();
+  initAudioPlayer();
+  loadSampleWork();
 }
 
 window.addEventListener('DOMContentLoaded', initExperience);

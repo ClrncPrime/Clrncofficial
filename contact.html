@@ -55,15 +55,35 @@
         </div>
       </div>
     </section>
+    <section class="section">
+      <div class="container">
+        <div class="content-card">
+          <h2>Send a message</h2>
+          <form id="contactForm" class="contact-form">
+            <label for="contactName">Name</label>
+            <input id="contactName" name="name" type="text" required>
+
+            <label for="contactEmail">Email</label>
+            <input id="contactEmail" name="email" type="email" required>
+
+            <label for="contactMessage">Message</label>
+            <textarea id="contactMessage" name="message" rows="5" required></textarea>
+
+            <button type="submit" class="btn btn-primary">Send Message</button>
+            <p id="contactFormStatus" class="form-note">Your message will be saved securely and sent.</p>
+          </form>
+        </div>
+      </div>
+    </section>
   </main>
 
   <footer class="site-footer">
     <div class="container footer-inner">
       <p>© 2026 Clarence. All Rights Reserved.</p>
-      <p>Built with HTML, CSS, and JavaScript.</p>
     </div>
   </footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="script.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function(){
