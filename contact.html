@@ -59,12 +59,15 @@
       <div class="container">
         <div class="content-card">
           <h2>Send a message</h2>
-          <form id="contactForm" class="contact-form">
+          <form id="contactForm">
             <label for="contactName">Name</label>
             <input id="contactName" name="name" type="text" required>
 
             <label for="contactEmail">Email</label>
             <input id="contactEmail" name="email" type="email" required>
+
+            <label for="contactPhone">Phone</label>
+            <input id="contactPhone" name="phone" type="tel">
 
             <label for="contactMessage">Message</label>
             <textarea id="contactMessage" name="message" rows="5" required></textarea>
@@ -83,50 +86,55 @@
     </div>
   </footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    window.SUPABASE_URL = "https://lkrrkozpnsfeysnezzvb.supabase.co";
-    window.SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrcnJrb3pwbnNmZXlzbmV6enZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0NTYzNjEsImV4cCI6MjEwMjAzMjM2MX0.6cqm-YK3rh4qyJF9OJV5t_yw3XMPEu5Z3TkOIn3EOKs";
-    const supabase = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_KEY);
-
-    document.addEventListener('DOMContentLoaded', () => {
-      const contactForm = document.getElementById('contactForm');
-      if (contactForm) {
-        contactForm.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const formData = new FormData(contactForm);
-          const data = {
-            name: formData.get('name'),
-            email: formData.get('email'),
-            phone: formData.get('phone'),
-            message: formData.get('message')
-          };
-
-          const { error } = await supabase.from('contact_messages').insert([data]);
-
-          if (error) {
-            alert('⚠️ Error sending message: ' + error.message);
-          } else {
-            alert('✅ Message sent successfully!');
-            contactForm.reset();
-          }
-        });
-      }
-    });
-  </script>
   <script src="script.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', function(){
+    document.addEventListener('DOMContentLoaded', function() {
       var phoneBtn = document.getElementById('phoneBtn');
       var phoneOptions = document.getElementById('phoneOptions');
-      if(!phoneBtn || !phoneOptions) return;
-      phoneBtn.addEventListener('click', function(e){
+      if (!phoneBtn || !phoneOptions) return;
+      phoneBtn.addEventListener('click', function(e) {
         e.preventDefault();
         phoneOptions.style.display = (phoneOptions.style.display === 'block') ? 'none' : 'block';
       });
-      document.addEventListener('click', function(e){
-        if(!phoneOptions.contains(e.target) && e.target !== phoneBtn){
+      document.addEventListener('click', function(e) {
+        if (!phoneOptions.contains(e.target) && e.target !== phoneBtn) {
           phoneOptions.style.display = 'none';
+        }
+      });
+    });
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "https://lkrrkozpnsfeysnezzvb.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrcnJrb3pwbnNmZXlzbmV6enZiIiwicm9zZSI6ImFub24iLCJpYXQiOjE3ODY0NTYzNjEsImV4cCI6MjEwMjAzMjM2MX0.6cqm-YK3rh4qyJF9OJV5t_yw3XMPEu5Z3TkOIn3EOKs";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const form = document.getElementById('contactForm');
+      if (!form) return console.error('❌ Form NOT FOUND — check id="contactForm"');
+
+      form.addEventListener('submit', async function(e) {
+        e.preventDefault(); // ✅ PREVENTS PAGE REFRESH
+        console.log('📤 Sending message to Supabase...');
+
+        const name = form.querySelector('[name="name"]').value;
+        const email = form.querySelector('[name="email"]').value;
+        const phone = form.querySelector('[name="phone"]')?.value || '';
+        const message = form.querySelector('[name="message"]').value;
+
+        const { data, error } = await supabase
+          .from('contact_messages')
+          .insert([{ name, email, phone, message }])
+          .select();
+
+        if (error) {
+          alert('⚠️ ERROR: ' + error.message);
+          console.error('❌ Supabase Error:', error);
+        } else {
+          alert('✅ MESSAGE SENT SUCCESSFULLY!');
+          console.log('✅ Saved to Supabase:', data);
+          form.reset();
         }
       });
     });
