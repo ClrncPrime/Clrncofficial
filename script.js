@@ -104,31 +104,6 @@ function hideWelcomeOverlay() {
   document.body.classList.remove('welcome-active');
 }
 
-function initSupabase() {
-  if (window.supabaseClient) {
-    supabaseClient = window.supabaseClient;
-    return;
-  }
-
-  const supabaseLib = window.supabase || window.supabaseJs || null;
-  if (!supabaseLib || typeof supabaseLib.createClient !== 'function') {
-    supabaseClient = null;
-    return;
-  }
-
-  const url = window.SUPABASE_URL;
-  const key = window.SUPABASE_KEY;
-  if (!url || !key) {
-    supabaseClient = null;
-    return;
-  }
-
-  try {
-    supabaseClient = supabaseLib.createClient(url, key);
-  } catch (err) {
-    supabaseClient = null;
-  }
-}
 
 async function loadSampleWork() {
   const container = document.getElementById('dynamicSampleContainer');
@@ -382,7 +357,6 @@ function enforceReasonRedirect(reason) {
 }
 
 function initExperience() {
-  initSupabase();
   const savedReason = localStorage.getItem(REASON_STORAGE_KEY);
   if (savedReason && REASON_CONFIG[savedReason]) {
     applyReasonFilters(savedReason);

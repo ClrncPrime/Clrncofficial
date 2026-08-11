@@ -65,39 +65,9 @@
     </div>
   </footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    // FIX: Full working Supabase configuration
-    window.SUPABASE_URL = "https://lkrrkozpnsfeysnezzvb.supabase.co";
-    window.SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrcnJrb3pwbnNmZXlzbmV6enZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0NTYzNjEsImV4cCI6MjEwMjAzMjM2MX0.6cqm-YK3rh4qyJF9OJV5t_yw3XMPEu5Z3TkOIn3EOKs";
-    const supabase = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_KEY);
-
-    // FIX: Contact Form submission logic
-    document.addEventListener('DOMContentLoaded', () => {
-      const contactForm = document.querySelector('form');
-      if (contactForm) {
-        contactForm.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const formData = new FormData(contactForm);
-          const data = {
-            name: formData.get('name'),
-            email: formData.get('email'),
-            phone: formData.get('phone'),
-            message: formData.get('message')
-          };
-
-          const { error } = await supabase.from('contact_messages').insert([data]);
-
-          if (error) {
-            alert('⚠️ Error sending message: ' + error.message);
-          } else {
-            alert('✅ Message sent successfully!');
-            contactForm.reset();
-          }
-        });
-      }
-    });
-  </script>
+  <script src="script.js"></script>
+</body>
+</html>
   <script src="script.js"></script>
 </body>
 </html>
