@@ -72,7 +72,7 @@
             <label for="contactMessage">Message</label>
             <textarea id="contactMessage" name="message" rows="5" required></textarea>
 
-            <button type="submit" class="btn btn-primary">Send Message</button>
+            <button type="button" id="sendMailBtn" class="btn btn-primary">Send Message</button>
             <p id="contactFormStatus" class="form-note">Your message will be saved securely and sent.</p>
           </form>
         </div>
@@ -91,52 +91,32 @@
     document.addEventListener('DOMContentLoaded', function() {
       var phoneBtn = document.getElementById('phoneBtn');
       var phoneOptions = document.getElementById('phoneOptions');
-      if (!phoneBtn || !phoneOptions) return;
-      phoneBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        phoneOptions.style.display = (phoneOptions.style.display === 'block') ? 'none' : 'block';
-      });
-      document.addEventListener('click', function(e) {
-        if (!phoneOptions.contains(e.target) && e.target !== phoneBtn) {
-          phoneOptions.style.display = 'none';
-        }
-      });
-    });
-  </script>
+      if (phoneBtn && phoneOptions) {
+        phoneBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          phoneOptions.style.display = (phoneOptions.style.display === 'block') ? 'none' : 'block';
+        });
+        document.addEventListener('click', function(e) {
+          if (!phoneOptions.contains(e.target) && e.target !== phoneBtn) {
+            phoneOptions.style.display = 'none';
+          }
+        });
+      }
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    const SUPABASE_URL = "https://lkrrkozpnsfeysnezzvb.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrcnJrb3pwbnNmZXlzbmV6enZiIiwicm9zZSI6ImFub24iLCJpYXQiOjE3ODY0NTYzNjEsImV4cCI6MjEwMjAzMjM2MX0.6cqm-YK3rh4qyJF9OJV5t_yw3XMPEu5Z3TkOIn3EOKs";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-    document.addEventListener('DOMContentLoaded', function() {
-      const form = document.getElementById('contactForm');
-      if (!form) return console.error('❌ Form NOT FOUND — check id="contactForm"');
-
-      form.addEventListener('submit', async function(e) {
-        e.preventDefault(); // ✅ PREVENTS PAGE REFRESH
-        console.log('📤 Sending message to Supabase...');
-
-        const name = form.querySelector('[name="name"]').value;
-        const email = form.querySelector('[name="email"]').value;
-        const phone = form.querySelector('[name="phone"]')?.value || '';
-        const message = form.querySelector('[name="message"]').value;
-
-        const { data, error } = await supabase
-          .from('contact_messages')
-          .insert([{ name, email, phone, message }])
-          .select();
-
-        if (error) {
-          alert('⚠️ ERROR: ' + error.message);
-          console.error('❌ Supabase Error:', error);
-        } else {
-          alert('✅ MESSAGE SENT SUCCESSFULLY!');
-          console.log('✅ Saved to Supabase:', data);
-          form.reset();
-        }
-      });
+      var sendBtn = document.getElementById('sendMailBtn');
+      if (sendBtn) {
+        sendBtn.addEventListener('click', function() {
+          var form = document.getElementById('contactForm');
+          if (!form) return;
+          var name = form.querySelector('[name="name"]').value || '';
+          var email = form.querySelector('[name="email"]').value || '';
+          var phone = form.querySelector('[name="phone"]')?.value || '';
+          var message = form.querySelector('[name="message"]').value || '';
+          var subject = encodeURIComponent('Contact from ' + (name || 'Website Visitor'));
+          var body = encodeURIComponent('Name: ' + name + '\nEmail: ' + email + '\nPhone: ' + phone + '\n\n' + message);
+          window.location.href = 'mailto:clarencedionisio23@gmail.com?subject=' + subject + '&body=' + body;
+        });
+      }
     });
   </script>
 </body>

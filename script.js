@@ -37,8 +37,7 @@ navLinks.forEach((link) => {
   }
 });
 
-const LOBBY_AUDIO_SRC = 'lobby-ambient.mp3';
-let supabaseClient = null;
+const LOBBY_YT_ID = 'VIDEO_ID_HERE';
 
 const REASON_STORAGE_KEY = 'portfolioVisitReason';
 const REASON_CONFIG = {
@@ -108,120 +107,18 @@ function hideWelcomeOverlay() {
 async function loadSampleWork() {
   const container = document.getElementById('dynamicSampleContainer');
   if (!container) return;
-  container.innerHTML = '<p class="form-note">Loading featured projects...</p>';
-  if (!supabaseClient) {
-    container.innerHTML = `
-      <article class="work-card">
-        <h2>Featured project feed</h2>
-        <p>Live sample projects will appear here once Supabase is configured. Replace the placeholder Supabase URL and public anon key in <code>script.js</code> to enable dynamic loading.</p>
-      </article>
-    `;
-    return;
-  }
-
-  try {
-    const { data, error } = await supabaseClient.from('sample_projects').select('id,title,description,link').limit(4);
-    if (error || !data) {
-      container.innerHTML = '';
-      return;
-    }
-
-    const cards = data.map((project) => `
-      <article class="work-card">
-        <h2>${project.title}</h2>
-        <p>${project.description}</p>
-        ${project.link ? `<a class="btn btn-primary" href="${project.link}" target="_blank" rel="noopener">View Project</a>` : ''}
-      </article>
-    `).join('');
-
-    container.innerHTML = cards;
-  } catch (err) {
-    container.innerHTML = '';
-  }
+  // Static placeholder — no database integration in this restored version
+  container.innerHTML = `
+    <article class="work-card">
+      <h2>Featured project feed</h2>
+      <p>Live sample projects will appear here. This site is a static portfolio — add project cards directly in the HTML to show featured work.</p>
+    </article>
+  `;
 }
 
-let lobbyAudio = null;
-let audioContext = null;
-let audioGain = null;
-let audioOscillator = null;
-
-function fadeAudio(clip, targetVolume, duration = 400) {
-  if (!clip) return;
-  const startVolume = clip.volume;
-  const step = 50;
-  const steps = Math.max(1, Math.floor(duration / step));
-  let currentStep = 0;
-  const volumeDelta = targetVolume - startVolume;
-
-  const fade = setInterval(() => {
-    currentStep += 1;
-    clip.volume = Math.min(1, Math.max(0, startVolume + (volumeDelta * currentStep) / steps));
-    if (currentStep >= steps) {
-      clearInterval(fade);
-      if (clip.volume === 0) clip.pause();
-    }
-  }, step);
-}
-
-function fadeAudioGain(targetVolume, duration = 400) {
-  if (!audioGain) return;
-  const startVolume = audioGain.gain.value;
-  const step = 50;
-  const steps = Math.max(1, Math.floor(duration / step));
-  let currentStep = 0;
-  const volumeDelta = targetVolume - startVolume;
-
-  const fade = setInterval(() => {
-    currentStep += 1;
-    audioGain.gain.value = Math.min(1, Math.max(0, startVolume + (volumeDelta * currentStep) / steps));
-    if (currentStep >= steps) {
-      clearInterval(fade);
-      if (audioGain.gain.value === 0 && audioOscillator) {
-        audioOscillator.stop();
-        audioOscillator = null;
-      }
-    }
-  }, step);
-}
-
-function createAmbientAudio() {
-  const AudioContext = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContext) return false;
-
-  audioContext = new AudioContext();
-  audioGain = audioContext.createGain();
-  audioGain.gain.value = 0;
-  audioGain.connect(audioContext.destination);
-
-  const filter = audioContext.createBiquadFilter();
-  filter.type = 'lowpass';
-  filter.frequency.value = 640;
-  filter.Q.value = 1;
-
-  audioOscillator = audioContext.createOscillator();
-  audioOscillator.type = 'triangle';
-  audioOscillator.frequency.value = 120;
-  audioOscillator.connect(filter);
-  filter.connect(audioGain);
-  audioOscillator.start();
-
-  return true;
-}
-
-async function initAudioPlayer() {
+// YouTube-based ambient player (replaces file-based/fallback audio implementation)
+function setupYouTubeAudio() {
   if (document.getElementById('audioPlayerButton')) return;
-
-  const hasAudioFile = await (async () => {
-    try {
-      const response = await fetch(LOBBY_AUDIO_SRC, { method: 'HEAD' });
-      return response.ok;
-    } catch (err) {
-      return false;
-    }
-  })();
-
-  const canUseFallback = !!(window.AudioContext || window.webkitAudioContext);
-  if (!hasAudioFile && !canUseFallback) return;
 
   const button = document.createElement('button');
   button.id = 'audioPlayerButton';
@@ -229,56 +126,83 @@ async function initAudioPlayer() {
   button.className = 'audio-player-button';
   button.innerHTML = '<span class="audio-icon">♪</span><span class="audio-label">Play Lobby Music</span>';
 
-  let playing = false;
-  const audioLabel = button.querySelector('.audio-label');
+  let player = null;
+  let playerReady = false;
 
-  async function startPlayback() {
-    if (hasAudioFile) {
-      if (!lobbyAudio) {
-        lobbyAudio = new Audio(LOBBY_AUDIO_SRC);
-        lobbyAudio.loop = true;
-        lobbyAudio.volume = 0.06;
-        lobbyAudio.preload = 'none';
+  // Load YouTube IFrame API once
+  if (!window.YT) {
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
+  }
+
+  window.onYouTubeIframeAPIReady = function() {
+    const div = document.createElement('div');
+    div.id = 'ytAudioContainer';
+    div.style.width = '0px';
+    div.style.height = '0px';
+    div.style.overflow = 'hidden';
+    div.style.position = 'absolute';
+    div.style.left = '-9999px';
+    document.body.appendChild(div);
+
+    player = new YT.Player('ytAudioContainer', {
+      height: '0',
+      width: '0',
+      videoId: LOBBY_YT_ID,
+      playerVars: { controls: 0, disablekb: 1, modestbranding: 1, rel: 0, showinfo: 0 },
+      events: {
+        onReady: (e) => { playerReady = true; try { player.setVolume(8); } catch(e) {} },
+        onStateChange: (e) => { if (e.data === YT.PlayerState.ENDED) { try { player.seekTo(0); player.playVideo(); } catch(e) {} } }
       }
-      await lobbyAudio.play();
-      fadeAudio(lobbyAudio, 0.08, 600);
+    });
+  };
+
+  function fadeVolume(target, duration = 600) {
+    if (!player || !playerReady || typeof player.getVolume !== 'function') return;
+    const start = player.getVolume();
+    const steps = 12;
+    const stepTime = Math.max(20, Math.floor(duration / steps));
+    let i = 0;
+    const delta = (target - start) / steps;
+    const t = setInterval(() => {
+      i++;
+      const v = Math.max(0, Math.min(100, Math.round(start + delta * i)));
+      try { player.setVolume(v); } catch (err) {}
+      if (i >= steps) clearInterval(t);
+    }, stepTime);
+  }
+
+  const audioLabel = button.querySelector('.audio-label');
+  let playing = false;
+  button.addEventListener('click', () => {
+    if (!window.YT || !window.YT.Player) {
+      if (audioLabel) audioLabel.textContent = 'Loading...';
+      const check = setInterval(() => { if (window.YT && window.YT.Player) { clearInterval(check); button.click(); } }, 300);
       return;
     }
 
-    if (!audioOscillator) {
-      if (!createAmbientAudio()) throw new Error('Ambient audio unavailable');
+    if (!playerReady) {
+      // Try again shortly once player is created
+      if (audioLabel) audioLabel.textContent = 'Starting...';
+      const wait = setInterval(() => {
+        if (typeof player !== 'undefined' && player && typeof player.getPlayerState === 'function') {
+          clearInterval(wait);
+          try { player.playVideo(); fadeVolume(8); } catch (e) {}
+          button.classList.add('playing'); if (audioLabel) audioLabel.textContent = 'Pause Music'; playing = true;
+        }
+      }, 250);
+      return;
     }
-    if (audioContext.state === 'suspended') {
-      await audioContext.resume();
-    }
-    fadeAudioGain(0.08, 600);
-  }
 
-  function stopPlayback() {
-    if (lobbyAudio) {
-      fadeAudio(lobbyAudio, 0, 600);
-    }
-    if (audioGain) {
-      fadeAudioGain(0, 600);
-    }
-  }
-
-  button.addEventListener('click', async () => {
-    if (!playing) {
-      try {
-        await startPlayback();
-        button.classList.add('playing');
-        if (audioLabel) audioLabel.textContent = 'Pause Music';
-        playing = true;
-      } catch (err) {
-        if (audioLabel) audioLabel.textContent = 'Audio unavailable';
+    try {
+      const state = player.getPlayerState();
+      if (state !== YT.PlayerState.PLAYING) {
+        player.playVideo(); fadeVolume(8); button.classList.add('playing'); if (audioLabel) audioLabel.textContent = 'Pause Music'; playing = true;
+      } else {
+        player.pauseVideo(); fadeVolume(0); button.classList.remove('playing'); if (audioLabel) audioLabel.textContent = 'Play Lobby Music'; playing = false;
       }
-    } else {
-      stopPlayback();
-      button.classList.remove('playing');
-      if (audioLabel) audioLabel.textContent = 'Play Lobby Music';
-      playing = false;
-    }
+    } catch (err) {}
   });
 
   document.body.appendChild(button);
@@ -366,7 +290,7 @@ function initExperience() {
     showWelcomeOverlay();
   }
   setupSmoothNavigation();
-  initAudioPlayer();
+  setupYouTubeAudio();
   loadSampleWork();
 }
 
