@@ -37,8 +37,6 @@ navLinks.forEach((link) => {
   }
 });
 
-const SUPABASE_URL = 'https://lkrrkozpnsfeysnezzvb.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrcnJrb3pwbnNmZXlzbmV6enZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0NTYzNjEsImV4cCI6MjEwMjAzMjM2MX0.6cqm-YK3rh4qyJF9OJV5t_yw3XMPEu5Z3TkOIn3EOKs';
 const LOBBY_AUDIO_SRC = 'lobby-ambient.mp3';
 let supabaseClient = null;
 
@@ -118,8 +116,8 @@ function initSupabase() {
     return;
   }
 
-  const url = window.SUPABASE_URL || SUPABASE_URL;
-  const key = window.SUPABASE_KEY || SUPABASE_KEY;
+  const url = window.SUPABASE_URL;
+  const key = window.SUPABASE_KEY;
   if (!url || !key) {
     supabaseClient = null;
     return;
