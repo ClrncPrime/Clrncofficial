@@ -37,7 +37,7 @@ navLinks.forEach((link) => {
   }
 });
 
-const LOBBY_YT_ID = 'zA04SiNiLYk';
+const LOBBY_AUDIO_SRC = 'lobby-ambient.wav';
 
 const REASON_STORAGE_KEY = 'portfolioVisitReason';
 const REASON_CONFIG = {
@@ -69,11 +69,11 @@ function createWelcomeOverlay() {
       </div>
       <div class="reason-grid">
         <button class="reason-card" data-reason="portfolio" type="button">
-          <span class="reason-title">Option A — View My Portfolio</span>
+          <span class="reason-title">Option A â€” View My Portfolio</span>
           <span class="reason-text">I want to browse your work, skills, and background</span>
         </button>
         <button class="reason-card" data-reason="services" type="button">
-          <span class="reason-title">Option B — Avail Services / Hire Me</span>
+          <span class="reason-title">Option B â€” Avail Services / Hire Me</span>
           <span class="reason-text">I am interested in your services and want to work with you</span>
         </button>
       </div>
@@ -107,174 +107,79 @@ function hideWelcomeOverlay() {
 async function loadSampleWork() {
   const container = document.getElementById('dynamicSampleContainer');
   if (!container) return;
-  // Static placeholder — no database integration in this restored version
+  // Static placeholder â€” no database integration in this restored version
   container.innerHTML = `
     <article class="work-card">
       <h2>Featured project feed</h2>
-      <p>Live sample projects will appear here. This site is a static portfolio — add project cards directly in the HTML to show featured work.</p>
+      <p>Live sample projects will appear here. This site is a static portfolio â€” add project cards directly in the HTML to show featured work.</p>
     </article>
   `;
 }
 
-// YouTube-based ambient audio player (uses video ID, loops forever)
-function setupYouTubeAudio() {
-  if (document.getElementById('floatingPlayer')) return;
+// Local ambient audio player using `lobby-ambient.wav` (preloads, loops, fades)
+function initAudioPlayer() {
+  if (document.getElementById('audioPlayerButton')) return;
 
-  // Create floating container
-  const wrap = document.createElement('div');
-  wrap.id = 'floatingPlayer';
-  wrap.className = 'floating-player';
+  const audio = document.createElement('audio');
+  audio.src = LOBBY_AUDIO_SRC;
+  audio.preload = 'auto';
+  audio.loop = true;
+  audio.volume = 0.0;
+  audio.setAttribute('aria-hidden', 'true');
+  audio.style.display = 'none';
+  audio.load();
 
-  const panel = document.createElement('div');
-  panel.className = 'floating-panel';
-  panel.innerHTML = `
-    <div class="fp-title">Lobby Music</div>
-    <div class="fp-small">Ambient loop</div>
-    <div class="fp-row" style="margin-top:10px;">
-      <button class="control-btn" id="fpPlay">▶️</button>
-      <button class="control-btn" id="fpPause">⏸</button>
-      <button class="control-btn" id="fpStop">⏹</button>
-      <button class="control-btn" id="fpRestart">🔁</button>
-    </div>
-    <div class="volume-wrap">
-      <input id="fpVolume" class="volume-slider" type="range" min="0" max="100" value="12">
-    </div>
-  `;
+  const button = document.createElement('button');
+  button.id = 'audioPlayerButton';
+  button.type = 'button';
+  button.className = 'audio-player-button';
+  button.innerHTML = '<span class="audio-icon">♪</span><span class="audio-label">Play Lobby Music</span>';
 
-  const btnWrap = document.createElement('div');
-  btnWrap.className = 'floating-button';
-  btnWrap.innerHTML = '<div class="dot"></div>';
-
-  wrap.appendChild(panel);
-  wrap.appendChild(btnWrap);
-  document.body.appendChild(wrap);
-
-  // Position state
-  const posKey = 'floatingPlayerPos';
-  const stateKey = 'floatingPlayerState';
-  const timeKey = 'floatingPlayerTime';
-
-  // Restore position
-  const saved = localStorage.getItem(posKey);
-  if (saved) {
-    try {
-      const p = JSON.parse(saved);
-      wrap.style.right = 'auto';
-      wrap.style.left = p.x + 'px';
-      wrap.style.top = p.y + 'px';
-      wrap.style.bottom = 'auto';
-    } catch (e) {}
+  function fadeAudio(targetVolume = 0.22, duration = 600) {
+    const start = audio.volume;
+    const steps = 12;
+    const stepTime = Math.max(20, Math.floor(duration / steps));
+    let i = 0;
+    const delta = (targetVolume - start) / steps;
+    const interval = setInterval(() => {
+      i += 1;
+      audio.volume = Math.max(0, Math.min(1, start + delta * i));
+      if (i >= steps) clearInterval(interval);
+    }, stepTime);
+    return interval;
   }
 
-  // Dragging
-  let dragging = false, dragOffsetX = 0, dragOffsetY = 0;
-  btnWrap.addEventListener('pointerdown', (ev) => {
-    dragging = true;
-    btnWrap.setPointerCapture(ev.pointerId);
-    const rect = wrap.getBoundingClientRect();
-    dragOffsetX = ev.clientX - rect.left;
-    dragOffsetY = ev.clientY - rect.top;
-  });
-  window.addEventListener('pointermove', (ev) => {
-    if (!dragging) return;
-    ev.preventDefault();
-    wrap.style.left = Math.min(Math.max(8, ev.clientX - dragOffsetX), window.innerWidth - 68) + 'px';
-    wrap.style.top = Math.min(Math.max(8, ev.clientY - dragOffsetY), window.innerHeight - 68) + 'px';
-    wrap.style.right = 'auto';
-    wrap.style.bottom = 'auto';
-  });
-  window.addEventListener('pointerup', (ev) => {
-    if (!dragging) return;
-    dragging = false;
-    try { btnWrap.releasePointerCapture(ev.pointerId); } catch (e) {}
-    // save
-    const rect = wrap.getBoundingClientRect();
-    localStorage.setItem(posKey, JSON.stringify({ x: rect.left, y: rect.top }));
+  audio.addEventListener('ended', () => {
+    try { audio.currentTime = 0; audio.play(); } catch (e) {}
   });
 
-  // Toggle panel
-  let open = false;
-  btnWrap.addEventListener('click', (e) => {
-    if (dragging) return; // ignore click when dragging
-    open = !open;
-    panel.classList.toggle('open', open);
-  });
+  let playing = false;
+  const audioLabel = () => button.querySelector('.audio-label');
 
-  // Load YT API and create player
-  const playerContainer = document.createElement('div');
-  playerContainer.id = 'ytAudioContainer';
-  playerContainer.style.width = '0'; playerContainer.style.height = '0'; playerContainer.style.overflow = 'hidden';
-  playerContainer.style.position = 'absolute'; playerContainer.style.left = '-9999px';
-  document.body.appendChild(playerContainer);
-
-  if (!window.YT) {
-    const tag = document.createElement('script');
-    tag.src = 'https://www.youtube.com/iframe_api';
-    document.head.appendChild(tag);
-  }
-
-  let player = null;
-  let playerReady = false;
-
-  window.onYouTubeIframeAPIReady = function() {
-    player = new YT.Player('ytAudioContainer', {
-      height: '0', width: '0', videoId: LOBBY_YT_ID,
-      playerVars: { controls: 0, disablekb: 1, modestbranding: 1, rel: 0, showinfo: 0 },
-      events: {
-        onReady: function() {
-          playerReady = true;
-          try { player.setVolume(parseInt(document.getElementById('fpVolume').value,10)); } catch(e) {}
-          // restore state
-          const st = JSON.parse(localStorage.getItem(stateKey) || 'null');
-          const t = parseFloat(localStorage.getItem(timeKey) || '0') || 0;
-          if (st && st.playing) {
-            try { player.seekTo(t); player.playVideo(); document.querySelector('.floating-button').classList.add('playing'); } catch(e) {}
-          }
-        },
-        onStateChange: function(e) {
-          if (e.data === YT.PlayerState.ENDED) {
-            try { player.seekTo(0); player.playVideo(); } catch (e) {}
-          }
-        }
+  button.addEventListener('click', async () => {
+    if (!playing) {
+      try {
+        await audio.play();
+        fadeAudio(0.22, 600);
+        button.classList.add('playing');
+        if (audioLabel()) audioLabel().textContent = '⏸ Pause Music';
+        playing = true;
+      } catch (err) {
+        if (audioLabel()) audioLabel().textContent = 'Audio unavailable';
       }
-    });
-  };
-
-  // Controls
-  const playBtn = panel.querySelector('#fpPlay');
-  const pauseBtn = panel.querySelector('#fpPause');
-  const stopBtn = panel.querySelector('#fpStop');
-  const restartBtn = panel.querySelector('#fpRestart');
-  const vol = panel.querySelector('#fpVolume');
-
-  function saveState(playing) {
-    localStorage.setItem(stateKey, JSON.stringify({ playing: !!playing }));
-  }
-
-  function saveTime() {
-    if (!player || !playerReady) return;
-    try { const t = player.getCurrentTime(); localStorage.setItem(timeKey, String(t)); } catch (e) {}
-  }
-
-  playBtn.addEventListener('click', () => {
-    if (!playerReady) return;
-    try { player.playVideo(); saveState(true); document.querySelector('.floating-button').classList.add('playing'); } catch(e) {}
-  });
-  pauseBtn.addEventListener('click', () => { if (!playerReady) return; try { player.pauseVideo(); saveState(false); document.querySelector('.floating-button').classList.remove('playing'); } catch(e) {} });
-  stopBtn.addEventListener('click', () => { if (!playerReady) return; try { player.stopVideo(); player.seekTo(0); saveState(false); document.querySelector('.floating-button').classList.remove('playing'); } catch(e) {} });
-  restartBtn.addEventListener('click', () => { if (!playerReady) return; try { player.seekTo(0); player.playVideo(); saveState(true); document.querySelector('.floating-button').classList.add('playing'); } catch(e) {} });
-
-  vol.addEventListener('input', (e) => { if (!playerReady) return; try { player.setVolume(parseInt(e.target.value,10)); } catch(e) {} });
-
-  // Periodically save time if playing
-  setInterval(() => { const st = JSON.parse(localStorage.getItem(stateKey) || 'null'); if (st && st.playing) saveTime(); }, 2000);
-
-  // close panel when clicking outside
-  document.addEventListener('click', (e) => {
-    if (!wrap.contains(e.target) && panel.classList.contains('open')) {
-      panel.classList.remove('open');
+    } else {
+      fadeAudio(0.0, 600);
+      setTimeout(() => {
+        try { audio.pause(); } catch (e) {}
+      }, 620);
+      button.classList.remove('playing');
+      if (audioLabel()) audioLabel().textContent = 'Play Lobby Music';
+      playing = false;
     }
   });
+
+  document.body.appendChild(audio);
+  document.body.appendChild(button);
 }
 
 function handleReasonSelection(reason) {
@@ -359,7 +264,7 @@ function initExperience() {
     showWelcomeOverlay();
   }
   setupSmoothNavigation();
-  setupYouTubeAudio();
+  initAudioPlayer();
   loadSampleWork();
 }
 
@@ -421,3 +326,4 @@ document.addEventListener('click', function(e){
     }
   });
 });
+
