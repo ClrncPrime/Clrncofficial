@@ -76,11 +76,34 @@ function initAudioPlayer() {
 
   const btnWrap = document.createElement('div');
   btnWrap.className = 'floating-button';
-  btnWrap.innerHTML = '<div class="dot"></div>';
+  btnWrap.innerHTML = `
+    <img class="floating-button-image" src="playbutton.jpg" alt="Play music">
+    <button class="panel-toggle" type="button" aria-label="Open player controls">⋯</button>
+  `;
 
   wrap.appendChild(panel);
   wrap.appendChild(btnWrap);
   document.body.appendChild(wrap);
+
+  const fallbackDot = document.createElement('div');
+  fallbackDot.className = 'dot';
+  const playImage = btnWrap.querySelector('.floating-button-image');
+  function applyFallbackImage() {
+    if (!playImage || btnWrap.contains(fallbackDot)) return;
+    playImage.style.display = 'none';
+    btnWrap.appendChild(fallbackDot);
+  }
+  if (playImage) {
+    playImage.onerror = applyFallbackImage;
+    playImage.onload = () => {
+      if (playImage.naturalWidth === 0 || playImage.naturalHeight === 0) {
+        applyFallbackImage();
+      }
+    };
+    if (playImage.complete && (playImage.naturalWidth === 0 || playImage.naturalHeight === 0)) {
+      applyFallbackImage();
+    }
+  }
 
   const posKey = 'floatingPlayerPos';
   const stateKey = 'floatingPlayerState';
@@ -169,6 +192,21 @@ function initAudioPlayer() {
     saveWrapPosition(snapped.left, snapped.top);
   }
 
+  const panelToggle = btnWrap.querySelector('.panel-toggle');
+  function updateFloatingButtonState(isPlaying) {
+    btnWrap.classList.toggle('playing', !!isPlaying);
+  }
+
+  panelToggle?.addEventListener('pointerdown', (ev) => {
+    ev.stopPropagation();
+  });
+
+  panelToggle?.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    open = !open;
+    panel.classList.toggle('open', open);
+  });
+
   restoreWrapPosition();
 
   let isPointerDown = false;
@@ -181,6 +219,7 @@ function initAudioPlayer() {
   const DRAG_THRESHOLD = 8;
 
   btnWrap.addEventListener('pointerdown', (ev) => {
+    if (ev.target === panelToggle) return;
     isPointerDown = true;
     dragMoved = false;
     isDragging = false;
@@ -228,13 +267,30 @@ function initAudioPlayer() {
   });
 
   let open = false;
+  function togglePlayback() {
+    const savedState = JSON.parse(localStorage.getItem(stateKey) || 'null');
+    const playing = savedState?.playing;
+    if (playing) {
+      saveState(false);
+      updateFloatingButtonState(false);
+      if (playerReady) {
+        try { player.pauseVideo(); } catch (e) {}
+      }
+    } else {
+      saveState(true);
+      updateFloatingButtonState(true);
+      if (playerReady) {
+        try { player.playVideo(); } catch (e) {}
+      }
+    }
+  }
+
   btnWrap.addEventListener('click', (e) => {
     if (dragMoved) {
       dragMoved = false;
       return;
     }
-    open = !open;
-    panel.classList.toggle('open', open);
+    togglePlayback();
   });
 
   const playerContainer = document.createElement('div');
@@ -272,7 +328,7 @@ function initAudioPlayer() {
           const savedState = JSON.parse(localStorage.getItem(stateKey) || 'null');
           const savedTime = parseFloat(localStorage.getItem(timeKey) || '0') || 0;
           if (savedState && savedState.playing) {
-            try { player.seekTo(savedTime, true); player.playVideo(); btnWrap.classList.add('playing'); } catch (e) {}
+            try { player.seekTo(savedTime, true); player.playVideo(); updateFloatingButtonState(true); } catch (e) {}
           }
         },
         onStateChange: function(e) {
@@ -305,22 +361,22 @@ function initAudioPlayer() {
 
   playBtn.addEventListener('click', () => {
     if (!playerReady) return;
-    try { player.playVideo(); saveState(true); btnWrap.classList.add('playing'); } catch (e) {}
+    try { player.playVideo(); saveState(true); updateFloatingButtonState(true); } catch (e) {}
   });
 
   pauseBtn.addEventListener('click', () => {
     if (!playerReady) return;
-    try { player.pauseVideo(); saveState(false); btnWrap.classList.remove('playing'); } catch (e) {}
+    try { player.pauseVideo(); saveState(false); updateFloatingButtonState(false); } catch (e) {}
   });
 
   stopBtn.addEventListener('click', () => {
     if (!playerReady) return;
-    try { player.stopVideo(); player.seekTo(0); saveState(false); btnWrap.classList.remove('playing'); } catch (e) {}
+    try { player.stopVideo(); player.seekTo(0); saveState(false); updateFloatingButtonState(false); } catch (e) {}
   });
 
   restartBtn.addEventListener('click', () => {
     if (!playerReady) return;
-    try { player.seekTo(0); player.playVideo(); saveState(true); btnWrap.classList.add('playing'); } catch (e) {}
+    try { player.seekTo(0); player.playVideo(); saveState(true); updateFloatingButtonState(true); } catch (e) {}
   });
 
   vol.addEventListener('input', (e) => {
