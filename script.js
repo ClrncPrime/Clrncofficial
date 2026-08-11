@@ -37,192 +37,207 @@ navLinks.forEach((link) => {
   }
 });
 
-const LOBBY_AUDIO_SRC = 'lobby-ambient.wav';
-
-const REASON_STORAGE_KEY = 'portfolioVisitReason';
-const REASON_CONFIG = {
-  portfolio: {
-    label: 'View My Portfolio',
-    description: 'I want to browse your work, skills, and background',
-    landingPage: 'portfolio.html',
-    allowedPages: ['index.html', 'portfolio.html', 'sample-work.html', ''],
-  },
-  services: {
-    label: 'Avail Services / Hire Me',
-    description: 'I am interested in your services and want to work with you',
-    landingPage: 'services.html',
-    allowedPages: ['index.html', 'services.html', 'contact.html', ''],
-  },
-};
-
-function createWelcomeOverlay() {
-  if (document.querySelector('.welcome-overlay')) return;
-
-  const overlay = document.createElement('div');
-  overlay.className = 'welcome-overlay';
-  overlay.innerHTML = `
-    <div class="welcome-panel" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle" aria-describedby="welcomeDescription">
-      <div class="welcome-copy">
-        <p class="eyebrow">Welcome!</p>
-        <h1 id="welcomeTitle">What brings you here today?</h1>
-        <p id="welcomeDescription">Choose one of the options below so I can show you the best experience.</p>
-      </div>
-      <div class="reason-grid">
-        <button class="reason-card" data-reason="portfolio" type="button">
-          <span class="reason-title">Option A â€” View My Portfolio</span>
-          <span class="reason-text">I want to browse your work, skills, and background</span>
-        </button>
-        <button class="reason-card" data-reason="services" type="button">
-          <span class="reason-title">Option B â€” Avail Services / Hire Me</span>
-          <span class="reason-text">I am interested in your services and want to work with you</span>
-        </button>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(overlay);
-  overlay.querySelectorAll('.reason-card').forEach((button) => {
-    button.addEventListener('click', () => {
-      handleReasonSelection(button.dataset.reason);
-    });
-  });
-}
-
-function showWelcomeOverlay() {
-  createWelcomeOverlay();
-  document.body.classList.add('welcome-active');
-  setTimeout(() => {
-    document.querySelector('.welcome-overlay')?.classList.add('visible');
-  }, 10);
-}
-
-function hideWelcomeOverlay() {
-  const overlay = document.querySelector('.welcome-overlay');
-  if (!overlay) return;
-  overlay.classList.remove('visible');
-  document.body.classList.remove('welcome-active');
-}
-
+const YT_VIDEO_ID = 'zA04SiNiLYk';
 
 async function loadSampleWork() {
   const container = document.getElementById('dynamicSampleContainer');
   if (!container) return;
-  // Static placeholder â€” no database integration in this restored version
+  // Static placeholder — no database integration in this restored version
   container.innerHTML = `
     <article class="work-card">
       <h2>Featured project feed</h2>
-      <p>Live sample projects will appear here. This site is a static portfolio â€” add project cards directly in the HTML to show featured work.</p>
+      <p>Live sample projects will appear here. This site is a static portfolio — add project cards directly in the HTML to show featured work.</p>
     </article>
   `;
 }
 
-// Local ambient audio player using `lobby-ambient.wav` (preloads, loops, fades)
 function initAudioPlayer() {
-  if (document.getElementById('audioPlayerButton')) return;
+  if (document.getElementById('floatingPlayer')) return;
 
-  const audio = document.createElement('audio');
-  audio.src = LOBBY_AUDIO_SRC;
-  audio.preload = 'auto';
-  audio.loop = true;
-  audio.volume = 0.0;
-  audio.setAttribute('aria-hidden', 'true');
-  audio.style.display = 'none';
-  audio.load();
+  const wrap = document.createElement('div');
+  wrap.id = 'floatingPlayer';
+  wrap.className = 'floating-player';
 
-  const button = document.createElement('button');
-  button.id = 'audioPlayerButton';
-  button.type = 'button';
-  button.className = 'audio-player-button';
-  button.innerHTML = '<span class="audio-icon">♪</span><span class="audio-label">Play Lobby Music</span>';
+  const panel = document.createElement('div');
+  panel.className = 'floating-panel';
+  panel.innerHTML = `
+    <div class="fp-title">Lobby Music</div>
+    <div class="fp-small">Ambient loop</div>
+    <div class="fp-row" style="margin-top:10px; gap: 8px; flex-wrap: wrap;">
+      <button class="control-btn" id="fpPlay" type="button">▶️</button>
+      <button class="control-btn" id="fpPause" type="button">⏸</button>
+      <button class="control-btn" id="fpStop" type="button">⏹</button>
+      <button class="control-btn" id="fpRestart" type="button">🔁</button>
+    </div>
+    <div class="volume-wrap">
+      <input id="fpVolume" class="volume-slider" type="range" min="0" max="100" value="24">
+    </div>
+  `;
 
-  function fadeAudio(targetVolume = 0.22, duration = 600) {
-    const start = audio.volume;
-    const steps = 12;
-    const stepTime = Math.max(20, Math.floor(duration / steps));
-    let i = 0;
-    const delta = (targetVolume - start) / steps;
-    const interval = setInterval(() => {
-      i += 1;
-      audio.volume = Math.max(0, Math.min(1, start + delta * i));
-      if (i >= steps) clearInterval(interval);
-    }, stepTime);
-    return interval;
+  const btnWrap = document.createElement('div');
+  btnWrap.className = 'floating-button';
+  btnWrap.innerHTML = '<div class="dot"></div>';
+
+  wrap.appendChild(panel);
+  wrap.appendChild(btnWrap);
+  document.body.appendChild(wrap);
+
+  const posKey = 'floatingPlayerPos';
+  const stateKey = 'floatingPlayerState';
+  const timeKey = 'floatingPlayerTime';
+  const volumeKey = 'floatingPlayerVolume';
+
+  const savedPos = localStorage.getItem(posKey);
+  if (savedPos) {
+    try {
+      const p = JSON.parse(savedPos);
+      wrap.style.right = 'auto';
+      wrap.style.left = `${Math.min(Math.max(8, p.x), window.innerWidth - 68)}px`;
+      wrap.style.top = `${Math.min(Math.max(8, p.y), window.innerHeight - 68)}px`;
+      wrap.style.bottom = 'auto';
+    } catch (e) {}
   }
 
-  audio.addEventListener('ended', () => {
-    try { audio.currentTime = 0; audio.play(); } catch (e) {}
+  let dragging = false;
+  let dragOffsetX = 0;
+  let dragOffsetY = 0;
+  btnWrap.addEventListener('pointerdown', (ev) => {
+    dragging = true;
+    btnWrap.setPointerCapture(ev.pointerId);
+    const rect = wrap.getBoundingClientRect();
+    dragOffsetX = ev.clientX - rect.left;
+    dragOffsetY = ev.clientY - rect.top;
   });
 
-  let playing = false;
-  const audioLabel = () => button.querySelector('.audio-label');
+  window.addEventListener('pointermove', (ev) => {
+    if (!dragging) return;
+    ev.preventDefault();
+    wrap.style.left = `${Math.min(Math.max(8, ev.clientX - dragOffsetX), window.innerWidth - wrap.offsetWidth)}px`;
+    wrap.style.top = `${Math.min(Math.max(8, ev.clientY - dragOffsetY), window.innerHeight - wrap.offsetHeight)}px`;
+    wrap.style.right = 'auto';
+    wrap.style.bottom = 'auto';
+  });
 
-  button.addEventListener('click', async () => {
-    if (!playing) {
-      try {
-        await audio.play();
-        fadeAudio(0.22, 600);
-        button.classList.add('playing');
-        if (audioLabel()) audioLabel().textContent = '⏸ Pause Music';
-        playing = true;
-      } catch (err) {
-        if (audioLabel()) audioLabel().textContent = 'Audio unavailable';
+  window.addEventListener('pointerup', (ev) => {
+    if (!dragging) return;
+    dragging = false;
+    try { btnWrap.releasePointerCapture(ev.pointerId); } catch (e) {}
+    const rect = wrap.getBoundingClientRect();
+    localStorage.setItem(posKey, JSON.stringify({ x: rect.left, y: rect.top }));
+  });
+
+  let open = false;
+  btnWrap.addEventListener('click', (e) => {
+    if (dragging) return;
+    open = !open;
+    panel.classList.toggle('open', open);
+  });
+
+  const playerContainer = document.createElement('div');
+  playerContainer.id = 'ytAudioContainer';
+  playerContainer.style.width = '0';
+  playerContainer.style.height = '0';
+  playerContainer.style.overflow = 'hidden';
+  playerContainer.style.position = 'absolute';
+  playerContainer.style.left = '-9999px';
+  document.body.appendChild(playerContainer);
+
+  if (!window.YT) {
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
+  }
+
+  let player = null;
+  let playerReady = false;
+
+  window.onYouTubeIframeAPIReady = function() {
+    player = new YT.Player('ytAudioContainer', {
+      height: '0',
+      width: '0',
+      videoId: YT_VIDEO_ID,
+      playerVars: { controls: 0, disablekb: 1, modestbranding: 1, rel: 0, showinfo: 0, loop: 1, playlist: YT_VIDEO_ID },
+      events: {
+        onReady: function() {
+          playerReady = true;
+          const volumeValue = parseInt(localStorage.getItem(volumeKey) || '24', 10);
+          const volume = Math.min(Math.max(0, volumeValue), 100);
+          const volumeInput = document.getElementById('fpVolume');
+          if (volumeInput) volumeInput.value = String(volume);
+          try { player.setVolume(volume); } catch (e) {}
+          const savedState = JSON.parse(localStorage.getItem(stateKey) || 'null');
+          const savedTime = parseFloat(localStorage.getItem(timeKey) || '0') || 0;
+          if (savedState && savedState.playing) {
+            try { player.seekTo(savedTime, true); player.playVideo(); btnWrap.classList.add('playing'); } catch (e) {}
+          }
+        },
+        onStateChange: function(e) {
+          if (e.data === YT.PlayerState.ENDED) {
+            try { player.seekTo(0); player.playVideo(); } catch (e) {}
+          }
+        }
       }
-    } else {
-      fadeAudio(0.0, 600);
-      setTimeout(() => {
-        try { audio.pause(); } catch (e) {}
-      }, 620);
-      button.classList.remove('playing');
-      if (audioLabel()) audioLabel().textContent = 'Play Lobby Music';
-      playing = false;
-    }
-  });
+    });
+  };
 
-  document.body.appendChild(audio);
-  document.body.appendChild(button);
-}
+  const playBtn = panel.querySelector('#fpPlay');
+  const pauseBtn = panel.querySelector('#fpPause');
+  const stopBtn = panel.querySelector('#fpStop');
+  const restartBtn = panel.querySelector('#fpRestart');
+  const vol = panel.querySelector('#fpVolume');
 
-function handleReasonSelection(reason) {
-  if (!REASON_CONFIG[reason]) return;
-  localStorage.setItem(REASON_STORAGE_KEY, reason);
-  applyReasonFilters(reason);
-  insertChangeReasonButton();
-  const target = REASON_CONFIG[reason].landingPage;
-  if (currentPage !== target) {
-    navigateWithTransition(target);
-  } else {
-    hideWelcomeOverlay();
+  function saveState(playing) {
+    localStorage.setItem(stateKey, JSON.stringify({ playing: !!playing }));
   }
-}
 
-function applyReasonFilters(reason) {
-  const config = REASON_CONFIG[reason];
-  navLinks.forEach((link) => {
-    const page = link.getAttribute('href').split('/').pop();
-    if (config.allowedPages.includes(page)) {
-      link.style.display = '';
-    } else {
-      link.style.display = 'none';
+  function saveVolume(value) {
+    localStorage.setItem(volumeKey, String(value));
+  }
+
+  function saveTime() {
+    if (!player || !playerReady) return;
+    try { const t = player.getCurrentTime(); localStorage.setItem(timeKey, String(t)); } catch (e) {}
+  }
+
+  playBtn.addEventListener('click', () => {
+    if (!playerReady) return;
+    try { player.playVideo(); saveState(true); btnWrap.classList.add('playing'); } catch (e) {}
+  });
+
+  pauseBtn.addEventListener('click', () => {
+    if (!playerReady) return;
+    try { player.pauseVideo(); saveState(false); btnWrap.classList.remove('playing'); } catch (e) {}
+  });
+
+  stopBtn.addEventListener('click', () => {
+    if (!playerReady) return;
+    try { player.stopVideo(); player.seekTo(0); saveState(false); btnWrap.classList.remove('playing'); } catch (e) {}
+  });
+
+  restartBtn.addEventListener('click', () => {
+    if (!playerReady) return;
+    try { player.seekTo(0); player.playVideo(); saveState(true); btnWrap.classList.add('playing'); } catch (e) {}
+  });
+
+  vol.addEventListener('input', (e) => {
+    if (!playerReady) return;
+    const value = parseInt(e.target.value, 10);
+    if (Number.isFinite(value)) {
+      try { player.setVolume(value); saveVolume(value); } catch (e) {}
     }
   });
-}
 
-function insertChangeReasonButton() {
-  if (document.getElementById('changeReasonBtn')) return;
-  const button = document.createElement('button');
-  button.id = 'changeReasonBtn';
-  button.className = 'change-reason-button';
-  button.type = 'button';
-  button.textContent = 'Change Reason';
-  button.addEventListener('click', () => {
-    showWelcomeOverlay();
+  setInterval(() => {
+    const savedState = JSON.parse(localStorage.getItem(stateKey) || 'null');
+    if (savedState && savedState.playing) saveTime();
+  }, 2000);
+
+  document.addEventListener('click', (e) => {
+    if (!wrap.contains(e.target) && panel.classList.contains('open')) {
+      panel.classList.remove('open');
+      open = false;
+    }
   });
-  document.body.appendChild(button);
-}
-
-function removeChangeReasonButton() {
-  const button = document.getElementById('changeReasonBtn');
-  if (button) button.remove();
 }
 
 function navigateWithTransition(url) {
@@ -242,27 +257,12 @@ function setupSmoothNavigation() {
     const url = new URL(href, window.location.href);
     if (url.origin !== window.location.origin) return;
     if (url.pathname === window.location.pathname && url.search === window.location.search) return;
-    if (anchor.closest('.welcome-overlay')) return;
     event.preventDefault();
     navigateWithTransition(url.pathname + url.search + url.hash);
   });
 }
 
-function enforceReasonRedirect(reason) {
-  const config = REASON_CONFIG[reason];
-  if (config.allowedPages.includes(currentPage)) return;
-  navigateWithTransition(config.landingPage);
-}
-
 function initExperience() {
-  const savedReason = localStorage.getItem(REASON_STORAGE_KEY);
-  if (savedReason && REASON_CONFIG[savedReason]) {
-    applyReasonFilters(savedReason);
-    insertChangeReasonButton();
-    enforceReasonRedirect(savedReason);
-  } else {
-    showWelcomeOverlay();
-  }
   setupSmoothNavigation();
   initAudioPlayer();
   loadSampleWork();
