@@ -287,10 +287,13 @@ textarea {
 }
 
 .hero {
+  position: relative;
+  overflow: hidden;
   padding: 4.5rem 0 3rem;
 }
 
 .hero-grid {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(280px, 1fr) minmax(220px, 260px);
   align-items: center;
@@ -299,7 +302,96 @@ textarea {
 }
 
 .hero-copy {
+  position: relative;
+  z-index: 2;
   max-width: 660px;
+}
+
+.hero-visual {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+}
+
+.code-rain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.code-rain span {
+  position: absolute;
+  top: -140%;
+  left: var(--x, 50%);
+  transform: translateX(-50%);
+  display: block;
+  white-space: pre-line;
+  text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: clamp(0.7rem, 1.1vw, 1rem);
+  line-height: 1.1;
+  letter-spacing: 0.08em;
+  color: rgba(99, 102, 241, 0.75);
+  text-shadow: 0 0 18px rgba(99, 102, 241, 0.28);
+  opacity: 0;
+  animation: code-fall var(--duration, 8s) linear infinite var(--delay, 2s);
+}
+
+.code-rain span:nth-child(odd) {
+  opacity: 0.48;
+}
+
+.code-rain span:nth-child(even) {
+  opacity: 0.38;
+}
+
+.avatar-ring.profile-avatar {
+  position: relative;
+  z-index: 2;
+  animation: profile-cycle 10s ease-in-out infinite;
+  animation-fill-mode: both;
+}
+
+@keyframes profile-cycle {
+  0% {
+    opacity: 0;
+    transform: translateY(-3rem) scale(0.95);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(2rem) scale(0.95);
+  }
+}
+
+@keyframes code-fall {
+  0% {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  10% {
+    opacity: 0.3;
+    transform: translateY(-90%);
+  }
+  90% {
+    opacity: 0.75;
+    transform: translateY(110%);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(130%);
+  }
 }
 
 .page-header-grid {
