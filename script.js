@@ -37,8 +37,6 @@ navLinks.forEach((link) => {
   }
 });
 
-const SUPABASE_URL = 'https://your-project-ref.supabase.co';
-const SUPABASE_KEY = 'your-public-anon-key';
 const LOBBY_AUDIO_SRC = 'lobby-ambient.mp3';
 let supabaseClient = null;
 
@@ -107,18 +105,18 @@ function hideWelcomeOverlay() {
 }
 
 function initSupabase() {
-  const placeholderUrl = 'your-project-ref.supabase.co';
-  const placeholderKey = 'your-public-anon-key';
-  if (!SUPABASE_URL || !SUPABASE_KEY || SUPABASE_URL.includes(placeholderUrl) || SUPABASE_KEY.includes(placeholderKey)) {
+  const supabaseLib = window.supabase || window.supabaseJs || window.supabaseClient || null;
+  if (!supabaseLib) {
     supabaseClient = null;
     return;
   }
 
-  const supabaseLib = window.supabase || window.supabaseJs || window.supabaseClient || null;
-  if (supabaseLib && !supabaseClient) {
-    const createClient = supabaseLib.createClient || supabaseLib;
-    if (typeof createClient === 'function') {
-      supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+  const createClient = supabaseLib.createClient || supabaseLib;
+  if (typeof createClient === 'function') {
+    try {
+      supabaseClient = createClient(window.SUPABASE_URL, window.SUPABASE_KEY);
+    } catch (err) {
+      supabaseClient = null;
     }
   }
 }
