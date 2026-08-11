@@ -37,6 +37,8 @@ navLinks.forEach((link) => {
   }
 });
 
+const SUPABASE_URL = 'https://lkrrkozpnsfeysnezzvb.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrcnJrb3pwbnNmZXlzbmV6enZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0NTYzNjEsImV4cCI6MjEwMjAzMjM2MX0.6cqm-YK3rh4qyJF9OJV5t_yw3XMPEu5Z3TkOIn3EOKs';
 const LOBBY_AUDIO_SRC = 'lobby-ambient.mp3';
 let supabaseClient = null;
 
@@ -105,19 +107,28 @@ function hideWelcomeOverlay() {
 }
 
 function initSupabase() {
-  const supabaseLib = window.supabase || window.supabaseJs || window.supabaseClient || null;
-  if (!supabaseLib) {
+  if (window.supabaseClient) {
+    supabaseClient = window.supabaseClient;
+    return;
+  }
+
+  const supabaseLib = window.supabase || window.supabaseJs || null;
+  if (!supabaseLib || typeof supabaseLib.createClient !== 'function') {
     supabaseClient = null;
     return;
   }
 
-  const createClient = supabaseLib.createClient || supabaseLib;
-  if (typeof createClient === 'function') {
-    try {
-      supabaseClient = createClient(window.SUPABASE_URL, window.SUPABASE_KEY);
-    } catch (err) {
-      supabaseClient = null;
-    }
+  const url = window.SUPABASE_URL || SUPABASE_URL;
+  const key = window.SUPABASE_KEY || SUPABASE_KEY;
+  if (!url || !key) {
+    supabaseClient = null;
+    return;
+  }
+
+  try {
+    supabaseClient = supabaseLib.createClient(url, key);
+  } catch (err) {
+    supabaseClient = null;
   }
 }
 
@@ -154,48 +165,6 @@ async function loadSampleWork() {
   } catch (err) {
     container.innerHTML = '';
   }
-}
-
-function bindContactForm() {
-  const form = document.getElementById('contactForm');
-  if (!form) return;
-
-  const nameField = document.getElementById('contactName');
-  const emailField = document.getElementById('contactEmail');
-  const messageField = document.getElementById('contactMessage');
-
-  form.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const status = document.getElementById('contactFormStatus');
-    if (!status) return;
-    status.textContent = 'Sending your message...';
-
-    const payload = {
-      name: nameField?.value.trim() || '',
-      email: emailField?.value.trim() || '',
-      message: messageField?.value.trim() || '',
-      page: currentPage || 'index.html',
-      created_at: new Date().toISOString(),
-    };
-
-    if (supabaseClient) {
-      try {
-        const { error } = await supabaseClient.from('contact_messages').insert([payload]);
-        if (error) {
-          status.textContent = 'Unable to send at the moment. Please try again later.';
-          return;
-        }
-        status.textContent = 'Message saved successfully. Thank you!';
-        form.reset();
-        return;
-      } catch (e) {
-        status.textContent = 'Unable to send at the moment. Please try again later.';
-        return;
-      }
-    }
-
-    status.textContent = 'Message ready to send. Supabase is not configured yet.';
-  });
 }
 
 let lobbyAudio = null;
@@ -425,7 +394,6 @@ function initExperience() {
     showWelcomeOverlay();
   }
   setupSmoothNavigation();
-  bindContactForm();
   initAudioPlayer();
   loadSampleWork();
 }
