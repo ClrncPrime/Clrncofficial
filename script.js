@@ -87,48 +87,152 @@ function initAudioPlayer() {
   const timeKey = 'floatingPlayerTime';
   const volumeKey = 'floatingPlayerVolume';
 
-  const savedPos = localStorage.getItem(posKey);
-  if (savedPos) {
+  function getViewportDimensions() {
+    const vv = window.visualViewport;
+    return {
+      width: vv?.width || window.innerWidth,
+      height: vv?.height || window.innerHeight
+    };
+  }
+
+  function clampPosition(left, top) {
+    const minGap = 8;
+    const viewport = getViewportDimensions();
+    const maxLeft = viewport.width - wrap.offsetWidth - minGap;
+    const maxTop = viewport.height - wrap.offsetHeight - minGap;
+    return {
+      left: Math.min(Math.max(minGap, left), Math.max(minGap, maxLeft)),
+      top: Math.min(Math.max(minGap, top), Math.max(minGap, maxTop))
+    };
+  }
+
+  function setWrapPosition(left, top) {
+    wrap.style.transition = wrap.classList.contains('dragging') ? 'none' : 'left 220ms ease, top 220ms ease';
+    wrap.style.left = `${left}px`;
+    wrap.style.top = `${top}px`;
+    wrap.style.right = 'auto';
+    wrap.style.bottom = 'auto';
+  }
+
+  function saveWrapPosition(left, top) {
+    const viewport = getViewportDimensions();
+    localStorage.setItem(posKey, JSON.stringify({ x: left / viewport.width, y: top / viewport.height }));
+  }
+
+  function restoreWrapPosition() {
+    const savedPos = localStorage.getItem(posKey);
+    if (!savedPos) return;
     try {
       const p = JSON.parse(savedPos);
-      wrap.style.right = 'auto';
-      wrap.style.left = `${Math.min(Math.max(8, p.x), window.innerWidth - 68)}px`;
-      wrap.style.top = `${Math.min(Math.max(8, p.y), window.innerHeight - 68)}px`;
-      wrap.style.bottom = 'auto';
+      if (typeof p.x !== 'number' || typeof p.y !== 'number') return;
+      const viewport = getViewportDimensions();
+      const left = Math.round(p.x * viewport.width);
+      const top = Math.round(p.y * viewport.height);
+      const normalized = clampPosition(left, top);
+      setWrapPosition(normalized.left, normalized.top);
     } catch (e) {}
   }
 
-  let dragging = false;
-  let dragOffsetX = 0;
-  let dragOffsetY = 0;
-  btnWrap.addEventListener('pointerdown', (ev) => {
-    dragging = true;
-    btnWrap.setPointerCapture(ev.pointerId);
+  function snapToNearestEdge() {
     const rect = wrap.getBoundingClientRect();
-    dragOffsetX = ev.clientX - rect.left;
-    dragOffsetY = ev.clientY - rect.top;
+    const viewport = getViewportDimensions();
+    const left = rect.left;
+    const top = rect.top;
+    const right = viewport.width - rect.right;
+    const bottom = viewport.height - rect.bottom;
+    const distances = [
+      { edge: 'left', value: left },
+      { edge: 'right', value: right },
+      { edge: 'top', value: top },
+      { edge: 'bottom', value: bottom }
+    ];
+    const nearest = distances.reduce((current, item) => item.value < current.value ? item : current, distances[0]);
+    let targetLeft = left;
+    let targetTop = top;
+    const margin = 8;
+    switch (nearest.edge) {
+      case 'left':
+        targetLeft = margin;
+        break;
+      case 'right':
+        targetLeft = viewport.width - wrap.offsetWidth - margin;
+        break;
+      case 'top':
+        targetTop = margin;
+        break;
+      case 'bottom':
+        targetTop = viewport.height - wrap.offsetHeight - margin;
+        break;
+    }
+    const snapped = clampPosition(targetLeft, targetTop);
+    setWrapPosition(snapped.left, snapped.top);
+    saveWrapPosition(snapped.left, snapped.top);
+  }
+
+  restoreWrapPosition();
+
+  let isPointerDown = false;
+  let isDragging = false;
+  let dragMoved = false;
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let startLeft = 0;
+  let startTop = 0;
+  const DRAG_THRESHOLD = 8;
+
+  btnWrap.addEventListener('pointerdown', (ev) => {
+    isPointerDown = true;
+    dragMoved = false;
+    isDragging = false;
+    dragStartX = ev.clientX;
+    dragStartY = ev.clientY;
+    const rect = wrap.getBoundingClientRect();
+    startLeft = rect.left;
+    startTop = rect.top;
+    wrap.classList.add('dragging');
+    wrap.style.transition = 'none';
+    btnWrap.setPointerCapture(ev.pointerId);
+    ev.preventDefault();
   });
 
   window.addEventListener('pointermove', (ev) => {
-    if (!dragging) return;
+    if (!isPointerDown) return;
+    const deltaX = ev.clientX - dragStartX;
+    const deltaY = ev.clientY - dragStartY;
+    if (!isDragging && Math.hypot(deltaX, deltaY) > DRAG_THRESHOLD) {
+      isDragging = true;
+      dragMoved = true;
+    }
+    if (!isDragging) return;
+    const position = clampPosition(startLeft + deltaX, startTop + deltaY);
+    setWrapPosition(position.left, position.top);
     ev.preventDefault();
-    wrap.style.left = `${Math.min(Math.max(8, ev.clientX - dragOffsetX), window.innerWidth - wrap.offsetWidth)}px`;
-    wrap.style.top = `${Math.min(Math.max(8, ev.clientY - dragOffsetY), window.innerHeight - wrap.offsetHeight)}px`;
-    wrap.style.right = 'auto';
-    wrap.style.bottom = 'auto';
   });
 
   window.addEventListener('pointerup', (ev) => {
-    if (!dragging) return;
-    dragging = false;
+    if (!isPointerDown) return;
+    isPointerDown = false;
+    if (isDragging) {
+      isDragging = false;
+      wrap.classList.remove('dragging');
+      wrap.style.transition = 'left 220ms ease, top 220ms ease';
+      snapToNearestEdge();
+    }
     try { btnWrap.releasePointerCapture(ev.pointerId); } catch (e) {}
+  });
+
+  window.addEventListener('resize', () => {
     const rect = wrap.getBoundingClientRect();
-    localStorage.setItem(posKey, JSON.stringify({ x: rect.left, y: rect.top }));
+    const normalized = clampPosition(rect.left, rect.top);
+    setWrapPosition(normalized.left, normalized.top);
   });
 
   let open = false;
   btnWrap.addEventListener('click', (e) => {
-    if (dragging) return;
+    if (dragMoved) {
+      dragMoved = false;
+      return;
+    }
     open = !open;
     panel.classList.toggle('open', open);
   });
