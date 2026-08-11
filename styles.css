@@ -24,42 +24,17 @@ body {
   margin: 0;
   min-height: 100vh;
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background-color: #070c18;
-  background-image:
-    radial-gradient(circle at top left, rgba(56, 189, 248, 0.22) 0%, rgba(56, 189, 248, 0.10) 14%, transparent 32%),
-    radial-gradient(circle at top right, rgba(168, 85, 247, 0.18) 0%, rgba(56, 189, 248, 0.08) 18%, transparent 36%),
-    radial-gradient(circle at bottom left, rgba(56, 189, 248, 0.18) 0%, rgba(168, 85, 247, 0.08) 16%, transparent 34%),
-    radial-gradient(circle at bottom right, rgba(168, 85, 247, 0.20) 0%, rgba(56, 189, 248, 0.09) 18%, transparent 34%),
-    radial-gradient(circle at top, rgba(56, 189, 248, 0.08), transparent 25%),
-    linear-gradient(180deg, #07101f 0%, #0b1221 100%);
-  background-repeat: no-repeat;
-  background-position: top left, top right, bottom left, bottom right, top center, center center;
-  background-size: 38% 38%, 38% 38%, 38% 38%, 38% 38%, 170% 160%, auto;
+  background: radial-gradient(circle at top, rgba(56, 189, 248, 0.08), transparent 25%), linear-gradient(180deg, #07101f 0%, #0b1221 100%);
   color: var(--text);
   overflow-x: hidden;
-  min-height: 100vh;
   opacity: 0;
   transform: translateY(18px);
   transition: opacity 0.55s ease, transform 0.55s ease;
-  animation: neon-corners 12s ease-in-out infinite;
-  background-attachment: fixed;
-}
-
-@keyframes neon-corners {
-  0%, 100% {
-    background-size: 38% 38%, 38% 38%, 38% 38%, 38% 38%, 170% 160%, auto;
-    opacity: 1;
-  }
-
-  50% {
-    background-size: 40% 40%, 40% 40%, 40% 40%, 40% 40%, 172% 162%, auto;
-    opacity: 0.96;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   body {
-    animation: none;
+    /* no animation on body background */
   }
 }
 
